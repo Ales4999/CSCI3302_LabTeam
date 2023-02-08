@@ -43,7 +43,7 @@ timestep = int(robot.getBasicTimeStep())
 # 4. front sensor reads light intensity of obstacle is aprox 0.05m
 # 5. rotate robot clockwise until left distance sensor (ps5) reads <0.05m
 # 6. drive forward as long as ps5 reads <0.05m, else stop forever
-first_obstacle = 0
+counter = 0
 # feedback loop: step simulation until receiving an exit event
 while robot.step(TIME_STEP) != -1:
     # read sensors outputs
@@ -70,7 +70,7 @@ while robot.step(TIME_STEP) != -1:
     rightMotor.setVelocity(rightSpeed)
     
     #Time? or sensors?
-    if first_obstacle == 0:
+    if counter == 0:
     
         if front_r or front_l:
             # turn right
@@ -88,7 +88,7 @@ while robot.step(TIME_STEP) != -1:
                 robot.step(100)
                 
             #update the first obstacle
-            first_obstacle += 1
+            counter += 1
            
     else:
     
@@ -115,20 +115,20 @@ while robot.step(TIME_STEP) != -1:
             leftMotor.setVelocity(leftSpeed)
             rightMotor.setVelocity(rightSpeed)
             
-            first_obstacle += 1
-            # print("increasing counter: ",  first_obstacle)
+            counter += 1
+            # print("increasing counter: ",  counter)
 
             
             #stop rotating when your sensor
             #while left_s:
             #do something
-        elif first_obstacle > 1: 
+        elif not left_s and counter > 2: 
             #stop forever
             # global robot
             # end_time = robot.getTime() + duration
             # while robot.step(TIME_STEP) != 1 and robot.getTime() < end_time
                 # pass
-            #print("getting inside elif: ",  first_obstacle)
+            #print("getting inside elif: ",  counter)
             leftMotor.setVelocity(0)
             rightMotor.setVelocity(0)
             break
