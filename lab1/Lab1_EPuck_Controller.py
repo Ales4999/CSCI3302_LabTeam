@@ -100,9 +100,11 @@ while robot.step(TIME_STEP) != -1:
             ## Turn a 180 degrees 
             leftMotor.setVelocity(leftSpeed)
             rightMotor.setVelocity(rightSpeed)
+            #increase counter to break while loop
+            #counter will increase indefenetly
+            counter += 1
+            #print("increasing counter: ",  counter)
             
-
-     
         elif front_r or front_l:
             #turn clockwise until ps5 marks <0.05m 
             #only need ps5 sensor 
@@ -115,25 +117,19 @@ while robot.step(TIME_STEP) != -1:
             leftMotor.setVelocity(leftSpeed)
             rightMotor.setVelocity(rightSpeed)
             
-            counter += 1
-            # print("increasing counter: ",  counter)
-
-            
             #stop rotating when your sensor
             #while left_s:
             #do something
         elif not left_s and counter > 2: 
             #stop forever
+            leftMotor.setVelocity(0)
+            rightMotor.setVelocity(0)
+            break
             # global robot
             # end_time = robot.getTime() + duration
             # while robot.step(TIME_STEP) != 1 and robot.getTime() < end_time
                 # pass
-            #print("getting inside elif: ",  counter)
-            leftMotor.setVelocity(0)
-            rightMotor.setVelocity(0)
-            break
-          
-            
+            # print("getting inside elif: ",  counter)
          #threshold reached
     
     # exit success
