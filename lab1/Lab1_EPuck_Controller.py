@@ -36,7 +36,7 @@ timestep = int(robot.getBasicTimeStep())
 # Main loop:
 # - perform simulation steps until Webots is stopping the controller
 
-##Lab1 pART 2 INST:
+# Lab1 pART 2 INST:
 # 1. Drive forward
 # 2. front sensor reads light intensity of obstacle is aprox 0.05m
 # 3. Turn robot 180 degrees
@@ -50,87 +50,87 @@ while robot.step(TIME_STEP) != -1:
     psValues = []
     for i in range(8):
         psValues.append(ps[i].getValue())
-        
+
     # process behavior -> # detect obstacles
-    #thresshold is 0.05 m away frorm an object
-    front_r = psValues[0] > 80.0 or psValues[1] > 80.0 
-    front_l =  psValues[6] > 80.0 or psValues[7] > 80.0
+    # thresshold is 0.05 m away frorm an object
+    front_r = psValues[0] > 80.0 or psValues[1] > 80.0
+    front_l = psValues[6] > 80.0 or psValues[7] > 80.0
     left_s = psValues[5] > 80.0
-    
-    #Front obstacle 
-    
+
+    # Front obstacle
+
     # write actuators inputs
-    
+
     # initialize motor speeds at 50% of MAX_SPEED.
-    leftSpeed  = 0.5 * MAX_SPEED
+    leftSpeed = 0.5 * MAX_SPEED
     rightSpeed = 0.5 * MAX_SPEED
     # modify speeds according to obstacles
-    ## Turn a 180 degrees 
+    # Turn a 180 degrees
     leftMotor.setVelocity(leftSpeed)
     rightMotor.setVelocity(rightSpeed)
-    
-    #Time? or sensors?
+
+    # Time? or sensors?
     if counter == 0:
-    
+
         if front_r or front_l:
             # turn right
-            leftSpeed  = 0.7 * MAX_SPEED
+            leftSpeed = 0.7 * MAX_SPEED
             rightSpeed = -0.7 * MAX_SPEED
-            
-            #make robot rotate
+
+            # make robot rotate
             leftMotor.setVelocity(leftSpeed)
             rightMotor.setVelocity(rightSpeed)
-            
-            #set timer for rotation
-            #duration = 5000 / timestep 
-            
+
+            # set timer for rotation
+            # duration = 5000 / timestep
+
             for i in range(20):
                 robot.step(100)
-                
-            #update the first obstacle
+
+            # update the first obstacle
             counter += 1
-           
+
     else:
-    
+
         if left_s:
-            #go straight
-            leftSpeed  = 0.5 * MAX_SPEED
+            # go straight
+            leftSpeed = 0.5 * MAX_SPEED
             rightSpeed = 0.5 * MAX_SPEED
             # modify speeds according to obstacles
-            ## Turn a 180 degrees 
+            # Turn a 180 degrees
             leftMotor.setVelocity(leftSpeed)
             rightMotor.setVelocity(rightSpeed)
-            #increase counter to break while loop
-            #counter will increase indefenetly
-            counter += 1
-            #print("increasing counter: ",  counter)
-            
+            # increase counter to break while loop
+            # counter will increase indefenetly
+            counter = 2
+            # print("increasing counter: ",  counter)
+
         elif front_r or front_l:
-            #turn clockwise until ps5 marks <0.05m 
-            #only need ps5 sensor 
+            # turn clockwise until ps5 marks <0.05m
+            # only need ps5 sensor
             # turn right
-            leftSpeed  = 0.7 * MAX_SPEED
+            leftSpeed = 0.7 * MAX_SPEED
             rightSpeed = -0.7 * MAX_SPEED
-            #print("outside while loop: ", ps[5].getValue() < 80)
-                            #make robot rotate
-            #print("inside while loop: ", ps[5].getValue() < 80)
+            # print("outside while loop: ", ps[5].getValue() < 80)
+            # make robot rotate
+            # print("inside while loop: ", ps[5].getValue() < 80)
             leftMotor.setVelocity(leftSpeed)
             rightMotor.setVelocity(rightSpeed)
-            
-            #stop rotating when your sensor
-            #while left_s:
-            #do something
-        elif not left_s and counter > 2: 
-            #stop forever
+
+            # stop rotating when your sensor
+            # while left_s:
+            # do something
+        elif not left_s and counter > 1:
+            # stop forever
             leftMotor.setVelocity(0)
             rightMotor.setVelocity(0)
             break
             # global robot
             # end_time = robot.getTime() + duration
             # while robot.step(TIME_STEP) != 1 and robot.getTime() < end_time
-                # pass
+            # pass
             # print("getting inside elif: ",  counter)
-         #threshold reached
-    
+         # threshold reached
+
     # exit success
     pass
