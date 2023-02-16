@@ -105,22 +105,20 @@ while robot.step(SIM_TIMESTEP) != -1:
 
     # d) Otherwise, if none of the ground sensors detect the line, rotate counterclockwise in place.
     if not left_line and not center_line and not right_line:
-        print("---> No Line:")
-        print("--->gs_left:[%5f], gs_center:[%5f], gs_right:[%5f]." %
-              (gs_left, gs_center, gs_right))
-        vR = 0.4*MAX_SPEED
-        vL = -0.4*MAX_SPEED
+       # print("---> No Line:")
+       # print("--->gs_left:[%5f], gs_center:[%5f], gs_right:[%5f]." %(gs_left, gs_center, gs_right))
+        vR = 0.5*MAX_SPEED
+        vL = -0.5*MAX_SPEED
 
     # a) If the center ground sensor detects the line, the robot should drive forward.
     # abs(gs_center - gs_left) > 1
     if ((center_line and left_line and right_line) or
-        (left_line and right_line and not center_line)
-        ):
+                (left_line and right_line and not center_line)
+            ):
         vR = 0.5*MAX_SPEED
         vL = 0.5*MAX_SPEED
-        print(" Three Sensors:")
-        print(" gs_left:[%5f], gs_center:[%5f], gs_right:[%5f]." %
-              (gs_left, gs_center, gs_right))
+        # print(" Three Sensors:")
+        # print(" gs_left:[%5f], gs_center:[%5f], gs_right:[%5f]." %(gs_left, gs_center, gs_right))
 
     # b) If the left ground sensor detects the line, the robot should rotate counterclockwise in place.
     # account for the noise:  abs(gs_center - gs_left) > 0.5
@@ -128,11 +126,10 @@ while robot.step(SIM_TIMESTEP) != -1:
           abs(gs_center - gs_left) > 0.5
           ):
 
-        vR = 0.3*MAX_SPEED
-        vL = -0.3*MAX_SPEED
-        print("-> Left Line:")
-        print("-> gs_left:[%5f], gs_center:[%5f], gs_right:[%5f]." %
-              (gs_left, gs_center, gs_right))
+        vR = 0.5*MAX_SPEED
+        vL = -0.5*MAX_SPEED
+        # print("-> Left Line:")
+        # print("-> gs_left:[%5f], gs_center:[%5f], gs_right:[%5f]." %(gs_left, gs_center, gs_right))
 
     # c) If the right ground sensor detects the line, the robot should rotate clockwise in place.
     # need to account for the noise coming from sensors: abs(gs_center - gs_left) > 1
@@ -141,18 +138,16 @@ while robot.step(SIM_TIMESTEP) != -1:
         (gs_right == min(gsr) or right_line or (center_line and right_line)) and
         abs(gs_center - gs_right) > 0.5
     ):
-        vR = -0.3*MAX_SPEED
-        vL = 0.3*MAX_SPEED
-        print("--> Right Line:")
-        print("--> gs_left:[%5f], gs_center:[%5f], gs_right:[%5f]." %
-              (gs_left, gs_center, gs_right))
+        vR = -0.5*MAX_SPEED
+        vL = 0.5*MAX_SPEED
+        # print("--> Right Line:")
+        # print("--> gs_left:[%5f], gs_center:[%5f], gs_right:[%5f]." %(gs_left, gs_center, gs_right))
 
     elif gs_center == min(gsr) or center_line:
         vR = 0.5*MAX_SPEED
         vL = 0.5*MAX_SPEED
-        print("> Center Line:")
-        print("> gs_left:[%5f], gs_center:[%5f], gs_right:[%5f]." %
-              (gs_left, gs_center, gs_right))
+        # print("> Center Line:")
+        # print("> gs_left:[%5f], gs_center:[%5f], gs_right:[%5f]." %(gs_left, gs_center, gs_right))
 
     # TODO: Call update_odometry Here
 
@@ -170,6 +165,11 @@ while robot.step(SIM_TIMESTEP) != -1:
     # 4) Focus on getting things generally right first, then worry
     # about calculating odometry in the world coordinate system of the
     # Webots simulator first (x points down, y points right)
+
+    # ODOMETRY
+    # time = int(robot.getBasicTimeStep())/1000
+
+    MAX_SPEED_MS = ((vL/vR)/MAX_SPEED)*EPUCK_MAX_WHEEL_SPEED
 
     # TODO: Insert Loop Closure Code Here
 
