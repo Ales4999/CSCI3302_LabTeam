@@ -136,7 +136,7 @@ while robot.step(SIM_TIMESTEP) != -1:
     # account for the noise: abs(gs_center - gs_left) > 0.5
     elif (
         (gs_right == min(gsr) or right_line or (center_line and right_line)) and
-        abs(gs_center - gs_left) > 0.5
+        abs(gs_center - gs_right) > 0.5
     ):
         vR = -0.3*MAX_SPEED
         vL = 0.3*MAX_SPEED
