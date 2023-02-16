@@ -63,7 +63,7 @@ while robot.step(SIM_TIMESTEP) != -1:
     for i, gs in enumerate(ground_sensors):
         gsr[i] = gs.getValue()
 
-    print(gsr)  # TODO: Uncomment to see the ground sensor values!
+    # print(gsr)  # TODO: Uncomment to see the ground sensor values!
 
     # Hints:
     #
@@ -80,6 +80,16 @@ while robot.step(SIM_TIMESTEP) != -1:
     # and test the robustness of your approach.
     #
 
+    # Implement control code to cause the ePuck to follow the
+    # black line on the ground within the “line_follower” state.
+    # You should use +/- <motor>.getMaxVelocity() for motor velocity values or slower.
+
+    # a) If the center ground sensor detects the line, the robot should drive forward.
+    # b) If the left ground sensor detects the line, the robot should rotate counterclockwise in place.
+    # c) If the right ground sensor detects the line, the robot should rotate clockwise in place.
+    # d) Otherwise, if none of the ground sensors detect the line, rotate counterclockwise in place.
+    # (This will help the robot re-find the line when it overshoots on corners!)
+
     # TODO: Insert Line Following Code Here
 
     # Store the values of the sensors
@@ -87,30 +97,59 @@ while robot.step(SIM_TIMESTEP) != -1:
     gs_center = gsr[1]
     gs_right = gsr[2]
 
-    # If epuck is on the line
-    if (gs_center < gs_right) and (gs_center < gs_left) and (gs_center < GROUND_SENSOR_THRESHOLD):
+    # print("gs_left:[%5f], gs_center:[%5f], gs_right:[%5f]." % (gs_left, gs_center, gs_right))
+
+    left_line = gsr[0] < GROUND_SENSOR_THRESHOLD
+    center_line = gsr[1] < GROUND_SENSOR_THRESHOLD
+    right_line = gsr[2] < GROUND_SENSOR_THRESHOLD
+
+    # d) Otherwise, if none of the ground sensors detect the line, rotate counterclockwise in place.
+    if not left_line and not center_line and not right_line:
+        print("---> No Line:")
+        print("--->gs_left:[%5f], gs_center:[%5f], gs_right:[%5f]." %
+              (gs_left, gs_center, gs_right))
+        vR = 0.4*MAX_SPEED
+        vL = -0.4*MAX_SPEED
+
+    # a) If the center ground sensor detects the line, the robot should drive forward.
+    # abs(gs_center - gs_left) > 1
+    if (center_line and left_line and right_line):
+        vR = 0.5*MAX_SPEED
         vL = 0.5*MAX_SPEED
-        vR = 0.5*MAX_SPEED
+        print(" Three Sensors:")
+        print(" gs_left:[%5f], gs_center:[%5f], gs_right:[%5f]." %
+              (gs_left, gs_center, gs_right))
 
-    # If epuck is on the startline
-    elif (gs_right < GROUND_SENSOR_THRESHOLD) and (gs_left < GROUND_SENSOR_THRESHOLD) and (gs_center < GROUND_SENSOR_THRESHOLD):
+    # b) If the left ground sensor detects the line, the robot should rotate counterclockwise in place.
+    # account for the noise:  abs(gs_center - gs_left) > 0.5
+    elif ((gs_left == min(gsr) or left_line or (center_line and left_line)) and
+          abs(gs_center - gs_left) > 0.5
+          ):
+
+        vR = 0.3*MAX_SPEED
+        vL = -0.3*MAX_SPEED
+        print("-> Left Line:")
+        print("-> gs_left:[%5f], gs_center:[%5f], gs_right:[%5f]." %
+              (gs_left, gs_center, gs_right))
+
+    # c) If the right ground sensor detects the line, the robot should rotate clockwise in place.
+    # account for the noise: abs(gs_center - gs_left) > 0.5
+    elif (
+        (gs_right == min(gsr) or right_line or (center_line and right_line)) and
+        abs(gs_center - gs_left) > 0.5
+    ):
+        vR = -0.3*MAX_SPEED
+        vL = 0.3*MAX_SPEED
+        print("--> Right Line:")
+        print("--> gs_left:[%5f], gs_center:[%5f], gs_right:[%5f]." %
+              (gs_left, gs_center, gs_right))
+
+    elif gs_center == min(gsr) or center_line:
+        vR = 0.5*MAX_SPEED
         vL = 0.5*MAX_SPEED
-        vR = 0.5*MAX_SPEED
-
-    # If epuck senses line curving to the left
-    elif (gs_left < gs_right) and (gs_left < gs_center) and (gs_left < GROUND_SENSOR_THRESHOLD):
-        vR = 0.5*MAX_SPEED
-        vL = -0.5*MAX_SPEED
-
-    # If epuck senses line curving to the right
-    elif (gs_left > gs_right) and (gs_right < gs_center) and (gs_right < GROUND_SENSOR_THRESHOLD):
-        vR = -0.5*MAX_SPEED
-        vL = 0.5*MAX_SPEED
-
-    # If none of the ground sensors detect the line
-    elif (gs_right > GROUND_SENSOR_THRESHOLD) and (gs_left > GROUND_SENSOR_THRESHOLD) and (gs_center > GROUND_SENSOR_THRESHOLD):
-        vR = 0.5*MAX_SPEED
-        vL = -0.5*MAX_SPEED
+        print("> Center Line:")
+        print("> gs_left:[%5f], gs_center:[%5f], gs_right:[%5f]." %
+              (gs_left, gs_center, gs_right))
 
     # TODO: Call update_odometry Here
 
@@ -138,6 +177,6 @@ while robot.step(SIM_TIMESTEP) != -1:
     # 2) Use the pose when you encounter the line last
     # for best results
 
-    print("Current pose: [%5f, %5f, %5f]" % (pose_x, pose_y, pose_theta))
+    # print("Current pose: [%5f, %5f, %5f]" % (pose_x, pose_y, pose_theta))
     leftMotor.setVelocity(vL)
     rightMotor.setVelocity(vR)
