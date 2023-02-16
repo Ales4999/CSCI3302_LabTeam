@@ -113,7 +113,9 @@ while robot.step(SIM_TIMESTEP) != -1:
 
     # a) If the center ground sensor detects the line, the robot should drive forward.
     # abs(gs_center - gs_left) > 1
-    if (center_line and left_line and right_line):
+    if ((center_line and left_line and right_line) or
+        (left_line and right_line and not center_line)
+        ):
         vR = 0.5*MAX_SPEED
         vL = 0.5*MAX_SPEED
         print(" Three Sensors:")
@@ -135,13 +137,9 @@ while robot.step(SIM_TIMESTEP) != -1:
     # c) If the right ground sensor detects the line, the robot should rotate clockwise in place.
     # need to account for the noise coming from sensors: abs(gs_center - gs_left) > 1
 
-    # this is freaking weird, and most probably wrong
-    # even though we are checking for the right sensor
-    # Without checking for the noise on the left sensor i.e. abs(gs_center - gs_left) > 0.5
-    # my robot fails to complete laps indefinetly....
     elif (
         (gs_right == min(gsr) or right_line or (center_line and right_line)) and
-        abs(gs_center - gs_left) > 0.5
+        abs(gs_center - gs_right) > 0.5
     ):
         vR = -0.3*MAX_SPEED
         vL = 0.3*MAX_SPEED
