@@ -10,7 +10,7 @@ import os
 # measurements above this threshold can be considered white.
 # TODO: Fill this in with a reasonable threshold that separates "line detected" from "no line detected"
 # when the gs detects the line, the signal drops to arounnd 300, so 350 is an appropriate threshold
-GROUND_SENSOR_THRESHOLD = 350
+GROUND_SENSOR_THRESHOLD = 500
 
 # These are your pose values that you will update by solving the odometry equations
 pose_x = 0
@@ -28,7 +28,7 @@ robot = Robot()
 # ePuck Constants
 EPUCK_AXLE_DIAMETER = 0.053  # ePuck's wheels are 53mm apart.
 # TODO: To be filled in with ePuck wheel speed in m/s
-EPUCK_MAX_WHEEL_SPEED = 0.1163
+EPUCK_MAX_WHEEL_SPEED = 0.1163 #calculated using ds/dt
 MAX_SPEED = 6.28
 
 # get the time step of the current world.
@@ -44,8 +44,7 @@ rightMotor.setVelocity(0.0)
 
 # Initialize and Enable the Ground Sensors
 gsr = [0, 0, 0]
-ground_sensors = [robot.getDevice('gs0'), robot.getDevice(
-    'gs1'), robot.getDevice('gs2')]
+ground_sensors = [robot.getDevice('gs0'), robot.getDevice('gs1'), robot.getDevice('gs2')]
 for gs in ground_sensors:
     gs.enable(SIM_TIMESTEP)
 
@@ -56,15 +55,31 @@ for i in range(10):
 vL = 0.5*MAX_SPEED  # TODO: Initialize variable for left speed
 vR = 0.5*MAX_SPEED  # TODO: Initialize variable for right speed
 
+wheelRadius = EPUCK_MAX_WHEEL_SPEED/MAX_SPEED
+MAX_SPEED_MS = ((vL/vR)/MAX_SPEED)*EPUCK_MAX_WHEEL_SPEED
+SIM_TIMESTEP_S = SIM_TIMESTEP/1000.0
+start_counter = 0
+
 # Main Control Loop:
 while robot.step(SIM_TIMESTEP) != -1:
-
+    
     # Read ground sensor values
     for i, gs in enumerate(ground_sensors):
         gsr[i] = gs.getValue()
 
     # print(gsr)  # TODO: Uncomment to see the ground sensor values!
 
+    # Store the values of the sensors
+    gs_left = gsr[0]
+    gs_center = gsr[1]
+    gs_right = gsr[2]
+
+    #Name the value of the sensors and check if they are below the threshold
+    left_line = gsr[0] < GROUND_SENSOR_THRESHOLD
+    center_line = gsr[1] < GROUND_SENSOR_THRESHOLD
+    right_line = gsr[2] < GROUND_SENSOR_THRESHOLD
+
+    # TODO: Insert Line Following Code Here
     # Hints:
     #
     # 1) Setting vL=MAX_SPEED and vR=-MAX_SPEED lets the robot turn
@@ -78,76 +93,36 @@ while robot.step(SIM_TIMESTEP) != -1:
     #
     # 4) Disable all console output to simulate the robot superfast
     # and test the robustness of your approach.
-    #
-
-    # Implement control code to cause the ePuck to follow the
-    # black line on the ground within the “line_follower” state.
-    # You should use +/- <motor>.getMaxVelocity() for motor velocity values or slower.
-
-    # a) If the center ground sensor detects the line, the robot should drive forward.
-    # b) If the left ground sensor detects the line, the robot should rotate counterclockwise in place.
-    # c) If the right ground sensor detects the line, the robot should rotate clockwise in place.
-    # d) Otherwise, if none of the ground sensors detect the line, rotate counterclockwise in place.
-    # (This will help the robot re-find the line when it overshoots on corners!)
-
-    # TODO: Insert Line Following Code Here
-
-    # Store the values of the sensors
-    gs_left = gsr[0]
-    gs_center = gsr[1]
-    gs_right = gsr[2]
-
-    # print("gs_left:[%5f], gs_center:[%5f], gs_right:[%5f]." % (gs_left, gs_center, gs_right))
-
-    left_line = gsr[0] < GROUND_SENSOR_THRESHOLD
-    center_line = gsr[1] < GROUND_SENSOR_THRESHOLD
-    right_line = gsr[2] < GROUND_SENSOR_THRESHOLD
 
     # d) Otherwise, if none of the ground sensors detect the line, rotate counterclockwise in place.
-    if not left_line and not center_line and not right_line:
-       # print("---> No Line:")
-       # print("--->gs_left:[%5f], gs_center:[%5f], gs_right:[%5f]." %(gs_left, gs_center, gs_right))
-        vR = 0.5*MAX_SPEED
-        vL = -0.5*MAX_SPEED
-
+    if (not left_line and not center_line and not right_line):
+        start_counter = 0
+        vR = 0.3*MAX_SPEED
+        vL = -0.3*MAX_SPEED
+    
     # a) If the center ground sensor detects the line, the robot should drive forward.
-    # abs(gs_center - gs_left) > 1
-    if ((center_line and left_line and right_line) or
-                (left_line and right_line and not center_line)
-            ):
+    elif ((center_line and not left_line and not right_line) or (center_line and left_line and not right_line) or (center_line and right_line and not left_line)):
+        start_counter = 0
         vR = 0.5*MAX_SPEED
         vL = 0.5*MAX_SPEED
-        # print(" Three Sensors:")
-        # print(" gs_left:[%5f], gs_center:[%5f], gs_right:[%5f]." %(gs_left, gs_center, gs_right))
 
     # b) If the left ground sensor detects the line, the robot should rotate counterclockwise in place.
-    # account for the noise:  abs(gs_center - gs_left) > 0.5
-    elif ((gs_left == min(gsr) or left_line or (center_line and left_line)) and
-          abs(gs_center - gs_left) > 0.5
-          ):
-
-        vR = 0.5*MAX_SPEED
-        vL = -0.5*MAX_SPEED
-        # print("-> Left Line:")
-        # print("-> gs_left:[%5f], gs_center:[%5f], gs_right:[%5f]." %(gs_left, gs_center, gs_right))
+    elif (left_line and not center_line and not right_line):
+        start_counter = 0
+        vR = 0.3*MAX_SPEED
+        vL = -0.3*MAX_SPEED
 
     # c) If the right ground sensor detects the line, the robot should rotate clockwise in place.
-    # need to account for the noise coming from sensors: abs(gs_center - gs_left) > 1
+    elif (right_line and not center_line and not left_line):
+        start_counter = 0
+        vR = -0.3*MAX_SPEED
+        vL = 0.3*MAX_SPEED
 
-    elif (
-        (gs_right == min(gsr) or right_line or (center_line and right_line)) and
-        abs(gs_center - gs_right) > 0.5
-    ):
-        vR = -0.5*MAX_SPEED
-        vL = 0.5*MAX_SPEED
-        # print("--> Right Line:")
-        # print("--> gs_left:[%5f], gs_center:[%5f], gs_right:[%5f]." %(gs_left, gs_center, gs_right))
-
-    elif gs_center == min(gsr) or center_line:
+    #If the robot is crossing the start line or sometimes all three get triggered in the corners
+    elif (center_line and right_line and left_line):
+        start_counter += 1
         vR = 0.5*MAX_SPEED
         vL = 0.5*MAX_SPEED
-        # print("> Center Line:")
-        # print("> gs_left:[%5f], gs_center:[%5f], gs_right:[%5f]." %(gs_left, gs_center, gs_right))
 
     # TODO: Call update_odometry Here
 
@@ -166,20 +141,33 @@ while robot.step(SIM_TIMESTEP) != -1:
     # about calculating odometry in the world coordinate system of the
     # Webots simulator first (x points down, y points right)
 
-    # ODOMETRY
-    # time = int(robot.getBasicTimeStep())/1000
+    Rx_dot = (vR*wheelRadius)/2 + (vL*wheelRadius)/2 #Forward speed of the robot
+    Rw_dot = (vR*wheelRadius)/EPUCK_AXLE_DIAMETER - (vL*wheelRadius)/EPUCK_AXLE_DIAMETER #Net rotation in the local frame
 
-    MAX_SPEED_MS = ((vL/vR)/MAX_SPEED)*EPUCK_MAX_WHEEL_SPEED
+    ix_dot = Rx_dot * math.cos(pose_theta) #Robots x_dot contribution in i coordinate frame
+    iy_dot = Rx_dot * math.sin(pose_theta) #Robots y_dot contribution in i coordinate frame
+    itheta_dot = Rw_dot #Robots theta_dot contribution in i coordinate frame
 
     # TODO: Insert Loop Closure Code Here
-
     # Hints:
-    #
     # 1) Set a flag whenever you encounter the line
-    #
     # 2) Use the pose when you encounter the line last
     # for best results
 
-    # print("Current pose: [%5f, %5f, %5f]" % (pose_x, pose_y, pose_theta))
+    #The start_counter reaches about 10 after it passes over the start line, hence, reset its coordinates to (0,0,0)
+    if (start_counter > 8):
+        pose_x = 0
+        pose_y = 0
+        pose_theta = 0
+    #If the robot is rotating on the spot, update its pose value
+    elif (vR*vL < 0):
+        pose_theta += itheta_dot*SIM_TIMESTEP_S #multiply by change in t to find rotation and add to previous value
+    #If the robot is moving straight, update its x and y values
+    else:
+        pose_x += ix_dot*SIM_TIMESTEP_S #multiply by change in t to find displacement and add to previous value
+        pose_y += iy_dot*SIM_TIMESTEP_S #multiply by change in t to find displacement and add to previous value
+
+    print("Current pose: [%5f, %5f, %5f]" % (pose_x, pose_y, pose_theta))
+    #Set the motor velocities with the new vL and vR rotational speeds
     leftMotor.setVelocity(vL)
     rightMotor.setVelocity(vR)
