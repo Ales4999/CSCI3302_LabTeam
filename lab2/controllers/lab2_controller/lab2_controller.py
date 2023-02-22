@@ -101,7 +101,10 @@ while robot.step(SIM_TIMESTEP) != -1:
         vL = -0.3*MAX_SPEED
     
     # a) If the center ground sensor detects the line, the robot should drive forward.
-    elif ((center_line and not left_line and not right_line) or (center_line and left_line and not right_line) or (center_line and right_line and not left_line)):
+    elif ((center_line and not left_line and not right_line) or 
+    (center_line and left_line and not right_line) or 
+    (center_line and right_line and not left_line)):
+    
         start_counter = 0
         vR = 0.5*MAX_SPEED
         vL = 0.5*MAX_SPEED
