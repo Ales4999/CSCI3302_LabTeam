@@ -6,10 +6,9 @@ from controller import Robot, Motor
 import math
 
 # TODO: Fill out with correct values from Robot Spec Sheet (or inspect PROTO definition for the robot)
-MAX_SPEED = 0.0001 # [rad/s]
-MAX_SPEED_MS = 0.0001 # [m/s]
-AXLE_LENGTH = 0.0001 # [m]
-
+MAX_SPEED = 6.67 # [rad/s]
+MAX_SPEED_MS = 0.22 # [m/s]
+AXLE_LENGTH = 0.178 # [m]
 
 
 MOTOR_LEFT = 0 # Left wheel index
@@ -35,6 +34,10 @@ for i in range(len(part_names)):
         robot_parts.append(robot.getDevice(part_names[i]))
         robot_parts[i].setPosition(float(target_pos[i]))
 
+# Get the maximum linear and angular velocities for the wheels
+max_linear_velocity = min( robot_parts[0].getMaxVelocity(), robot_parts[1].getMaxVelocity())
+#print("-> max_linear_velocity for wheels: ", max_linear_velocity)
+
 # Odometry
 pose_x     = 0
 pose_y     = 0
@@ -44,6 +47,15 @@ pose_theta = 0
 vL = 0
 vR = 0
 
+#Waypoints, array of (x,y) coordinates to traverse 
+#Fill with correct values!!
+waypoints  = [[0, 1],
+              [2, 3],
+              [4, 5],
+              [6, 7],
+              [8, 9],
+              [10,11]]
+
 # TODO
 # Create you state and goals (waypoints) variable here
 # You have to MANUALLY figure out the waypoints, one sample is provided for you in the instructions
@@ -51,14 +63,30 @@ vR = 0
 while robot.step(timestep) != -1:
 
     # STEP 2.1: Calculate error with respect to current and goal position
+    
+    #Prof said in class odometry was going to be given  
+    #down the line this must be updated somehow
+    goal_x = waypoints[0][0]
+    goal_y = waypoints[0][1] 
+    
+    # sqrt( (xr-xg)^2 + (yr - yg)^2) 
+    rho = math.sqrt( (pose_x - goal_x)^2  + (pose_y - goal_y )^2)
     pass   
     
     # STEP 2.2: Feedback Controller
     pass
-    
+    xR_dot = 0
+    thetaR_dot = 0
+    radius =  (MAX_SPEED_MS/MAX_SPEED)
+    d = AXLE_LENGTH
     # STEP 1: Inverse Kinematics Equations (vL and vR as a function dX and dTheta)
     # Note that vL and vR in code is phi_l and phi_r on the slides/lecture
-    
+    vL = xR_dot - (thetaR_dot/2)*d
+    vR = xR_dot + (thetaR_dot/2)*d
+
+    xR_dot =(vL/2 + vR/2)
+    thetaR_dot = (vR/d - vL/d)
+
     pass
     
     # STEP 2.3: Proportional velocities
