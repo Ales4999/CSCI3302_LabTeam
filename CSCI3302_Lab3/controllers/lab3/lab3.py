@@ -55,12 +55,15 @@ vR = 0
 # Waypoints, array of (x,y) coordinates to traverse
 # Fill with correct values!!
 
-# waypoints  = [[0, 1],
-#               [2, 3],
-#               [4, 5],
-#               [6, 7],
-#               [8, 9],
-#               [10,11]]
+waypoints = [[-8, -5],
+             [-6, -6],
+             [-4.5, -4],
+             [-3.3, -3.8],
+             [-1.7, -2],
+             [-1.7, -1.7]]
+
+i, j = 0, 0
+
 
 # Starting point on map:
 # x: -8 m
@@ -77,21 +80,29 @@ while robot.step(timestep) != -1:
 
     # STEP 2.1: Calculate error with respect to current and goal position
 
-    # goal_x = waypoints[0][0]
-    # goal_y = waypoints[0][1]
-    goal_x = -6
-    goal_y = -6
+    # goal_x = waypoints[i][j]
+    # goal_y = waypoints[i][j+1]
+
+    goal_x = waypoints[i+1][j] - waypoints[i][j]
+    goal_y = waypoints[i+1][j+1] - waypoints[i][j+1]
+
+    # print("goal_x, goal_y", goal_x, " ", goal_y)
     goal_theta = 0.5
 
     ## Position Error : rho ##
     # sqrt( (xr-xg)^2 + (yr - yg)^2)
     rho = math.sqrt((pose_x - goal_x)**2 + (pose_y - goal_y)**2)
-    print("-> rho:", rho)
+    # print("-> position error:", rho)
 
-    # STEP 2.2: Feedback Controller
     ## Bearing Error: alpha##
     alpha = math.atan2((goal_y-pose_y), (goal_x-pose_x))-pose_theta
-    print("-> alpha:", alpha)
+    # print("-> Bearing Error:", alpha)
+
+    ## Heading Error: nu ##
+    nu = goal_theta - pose_theta
+    # print("-> Heading Error:", alpha)
+
+    # STEP 2.2: Feedback Controller
 
     # STEP 1: Inverse Kinematics Equations (vL and vR as a function dX and dTheta)
     # Note that vL and vR in code is phi_l and phi_r on the slides/lecture
@@ -99,17 +110,6 @@ while robot.step(timestep) != -1:
     thetaR_dot = 0
     radius = (MAX_SPEED_MS/MAX_SPEED)
     d = AXLE_LENGTH
-    vL = xR_dot - (thetaR_dot/2)*d
-    vR = xR_dot + (thetaR_dot/2)*d
-
-    xR_dot = vL/2 + vR/2
-    thetaR_dot = vR/d - vL/d
-
-    # STEP 2.3: Proportional velocities
-    vL = 0  # Left wheel velocity in rad/s
-    vR = 0  # Right wheel velocity in rad/s
-    ## Heading Error: nu ##
-    nu = goal_theta - pose_theta
 
     # STEP 2.4: Clamp wheel speeds
     # controller gains p1, p2, p3
@@ -119,24 +119,41 @@ while robot.step(timestep) != -1:
     # need conditional logic to determine controller gains
     # Prioritize BEaring error
     p1, p2, p3 = 0, 0, 0
-    if (abs(alpha) > 0.1):
-        p1 = 0.1  # small gains for rho
-        p2 = 0.8  # higher gains for alpha
+    if (abs(alpha) > 0.5):
+        p1 = 2  # small gains for rho
+        p2 = 4  # higher gains for alpha
         p3 = 0  # no update for nu
     else:
         # Prioratize position error
-        if (abs(rho) > 0.1):
-            p1 = 0.8
-            p2 = 0.1
+        if (abs(rho) > 0.5):
+            p1 = 4  # higher gains for rho i.e. position
+            p2 = 2
             p3 = 0
         else:
             # Prioritize heading error
-            p1 = 0.1
-            p2 = 0.1
-            p3 = 0.8
+            p1 = 2
+            p2 = 2
+            p3 = 4
 
     xR_dot = p1 * rho
-    ThetaR_dot = p2 * alpha + p3 * nu
+    thetaR_dot = p2 * alpha + p3 * nu
+
+    # calculate xR_dot and thetaR_dot
+    # xR_dot = vL/2 + vR/2
+    # thetaR_dot = vR/d - vL/d
+
+    # STEP 2.3: Proportional velocities
+    vL = xR_dot - (thetaR_dot/2)*d  # Left wheel velocity in rad/s
+    vR = xR_dot + (thetaR_dot/2)*d
+
+    # 2.7 clamp the velocities if they exceed MAX_SPEED
+    if vL > MAX_SPEED:
+        vL = MAX_SPEED
+    if vR > MAX_SPEED:
+        vR = MAX_SPEED
+
+    # print("vR after updating: ", vR)
+    # print("vL after updating: ", vL)
 
     # TODO
     # Use Your Lab 2 Odometry code after these 2 comments. We will supply you with our code next week
@@ -171,6 +188,16 @@ while robot.step(timestep) != -1:
 
     pose_theta += (distR-distL)/AXLE_LENGTH
 
+    # Debugging Code
+    print(f'Pose {pose_x=} {pose_y=} {pose_theta=}')
+
+    print(f'Goal {goal_x=} {goal_y=} {goal_theta=}')
+
+    print(f'Error values {rho=} {alpha=} {nu=}')
+
+    print(f'Speeds {vR=} {vL=}')
+    print("---------------------------------")
+
     ########## End Odometry Code ##################
 
     ########## Do not change ######################
@@ -184,5 +211,5 @@ while robot.step(timestep) != -1:
 
     # TODO
     # Set robot motors to the desired velocities
-    robot_parts[MOTOR_LEFT].setVelocity(0)
-    robot_parts[MOTOR_RIGHT].setVelocity(0)
+    robot_parts[MOTOR_LEFT].setVelocity(vL)
+    robot_parts[MOTOR_RIGHT].setVelocity(vR)
