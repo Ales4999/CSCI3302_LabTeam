@@ -49,20 +49,16 @@ pose_theta = 0
 vL = 0
 vR = 0
 
-# TODO STEP 2.9 
+# TODO STEP 2.9
 # Create you state and goals (waypoints) variable here
 # You have to MANUALLY figure out the waypoints, one sample is provided for you in the instructions
 # Waypoints, array of (x,y) coordinates to traverse
 # Fill with correct values!!
 
-waypoints = [[-8, -5],
-             [-6, -6],
-             [-4.5, -4],
-             [-3.3, -3.8],
-             [-1.7, -2],
-             [-1.7, -1.7]]
+waypoints = [(-8, -5), (-6, -6), (-5.09, -5.9), (-4.5, -4),
+             (-3.3, -3.8), (-1.7, -2), (-1.7, -1.7)]
 
-i, j = 0, 0
+i = 0
 
 
 # Starting point on map:
@@ -83,21 +79,17 @@ while robot.step(timestep) != -1:
     # goal_x = waypoints[i][j]
     # goal_y = waypoints[i][j+1]
 
-    goal_x = waypoints[i+1][j] - waypoints[i][j]
-    goal_y = waypoints[i+1][j+1] - waypoints[i][j+1]
-
+    # 2dArray[rows][columns]
+    goal_x = waypoints[i+1][0] - waypoints[i][0]
+    goal_y = waypoints[i+1][1] - waypoints[i][1]
+    print(goal_x)
+    print(goal_y)
     # print("goal_x, goal_y", goal_x, " ", goal_y)
-    
-    # Extra Credit 
-    # Extra Credit(5 pts) Have the robot face the microwave(90 degrees rotation 
-    # about the z-axis from the starting position) in the final configuration.
-    # Set goal pose to be facing the microwave, update heading error accordingly 
-    if i == 5: 
-        #last position
-        goal_theta = 1.5708
-    else: 
-        goal_theta = 0.5
 
+    # Extra Credit
+    # Extra Credit(5 pts) Have the robot face the microwave(90 degrees rotation
+    # about the z-axis from the starting position) in the final configuration.
+    # Set goal pose to be facing the microwave, update heading error accordingly
 
     ## Position Error : rho ##
     # sqrt( (xr-xg)^2 + (yr - yg)^2)
@@ -105,21 +97,28 @@ while robot.step(timestep) != -1:
     # print("-> position error:", rho)
 
     ## Bearing Error: alpha##
+    # angle to point towards desired location
     alpha = math.atan2((goal_y-pose_y), (goal_x-pose_x))-pose_theta
     # print("-> Bearing Error:", alpha)
 
+    if i == 5:
+        # last position
+        goal_theta = 1.5708
+    else:
+        goal_theta = alpha
+
     ## Heading Error: nu ##
+    # angle to point in correct direction
     nu = goal_theta - pose_theta
     # print("-> Heading Error:", alpha)
 
-    # STEP 2.2: Feedback Controller
+    # Clamp error values
+    if alpha < -3.1415:
+        alpha += 6.283
+    if nu < -3.1415:
+        nu += 6.283
 
-    # STEP 1: Inverse Kinematics Equations (vL and vR as a function dX and dTheta)
-    # Note that vL and vR in code is phi_l and phi_r on the slides/lecture
-    xR_dot = 0
-    thetaR_dot = 0
-    radius = (MAX_SPEED_MS/MAX_SPEED)
-    d = AXLE_LENGTH
+    # STEP 2.2: Feedback Controller
 
     # STEP 2.4: Clamp wheel speeds
     # controller gains p1, p2, p3
@@ -127,23 +126,30 @@ while robot.step(timestep) != -1:
     # thetaR_dot = p2 * alpha + p3 * nu
 
     # need conditional logic to determine controller gains
-    # Prioritize BEaring error
+    # Prioritize Bearing error
     p1, p2, p3 = 0, 0, 0
-    if (abs(alpha) > 0.5):
-        p1 = 2  # small gains for rho
-        p2 = 4  # higher gains for alpha
+    if (abs(alpha) > 0.3):
+        p1 = 1  # small gains for rho
+        p2 = 10  # higher gains for alpha
         p3 = 0  # no update for nu
     else:
         # Prioratize position error
         if (abs(rho) > 0.5):
-            p1 = 4  # higher gains for rho i.e. position
-            p2 = 2
+            p1 = 10  # higher gains for rho i.e. position
+            p2 = 1
             p3 = 0
         else:
             # Prioritize heading error
-            p1 = 2
-            p2 = 2
-            p3 = 4
+            p1 = 1
+            p2 = 1
+            p3 = 10
+
+    # STEP 1: Inverse Kinematics Equations (vL and vR as a function dX and dTheta)
+    # Note that vL and vR in code is phi_l and phi_r on the slides/lecture
+    xR_dot = 0
+    thetaR_dot = 0
+    radius = (MAX_SPEED_MS/MAX_SPEED)
+    d = AXLE_LENGTH
 
     xR_dot = p1 * rho
     thetaR_dot = p2 * alpha + p3 * nu
@@ -159,29 +165,34 @@ while robot.step(timestep) != -1:
     # 2.7 clamp the velocities if they exceed MAX_SPEED
     if vL > MAX_SPEED:
         vL = MAX_SPEED
-    elif -vL > MAX_SPEED:
+    elif abs(vL) > MAX_SPEED:
         vL = - MAX_SPEED
 
     if vR > MAX_SPEED:
         vR = MAX_SPEED
-    elif -vR > MAX_SPEED:
+    elif abs(vR) > MAX_SPEED:
         vR = - MAX_SPEED
 
     # print("vR after updating: ", vR)
     # print("vL after updating: ", vL)
 
     # STEP 2.8 Create stopping criteria
-                                                          
+    # check for the error values to pass a threshold
+    if abs(rho) <= 0.5 and abs(nu) <= 0.5 and alpha <= abs(0.5):
+        vL = 0
+        vR = 0
+        i += 1
+        # exit
 
-    # TODO
-    # Use Your Lab 2 Odometry code after these 2 comments. We will supply you with our code next week
-    # after the Lab 2 deadline but you free to use your own code if you are sure about its correctness
+        # TODO
+        # Use Your Lab 2 Odometry code after these 2 comments. We will supply you with our code next week
+        # after the Lab 2 deadline but you free to use your own code if you are sure about its correctness
 
-    # NOTE that the odometry should ONLY be a function of
-    # (vL, vR, MAX_SPEED, MAX_SPEED_MS, timestep, AXLE_LENGTH, pose_x, pose_y, pose_theta)
-    # Odometry code. Don't change speeds (vL and vR) after this line
+        # NOTE that the odometry should ONLY be a function of
+        # (vL, vR, MAX_SPEED, MAX_SPEED_MS, timestep, AXLE_LENGTH, pose_x, pose_y, pose_theta)
+        # Odometry code. Don't change speeds (vL and vR) after this line
 
-    # Odometry code from Piazza
+        # Odometry code from Piazza
     distL = vL/MAX_SPEED * MAX_SPEED_MS * timestep/1000.0
 
     distR = vR/MAX_SPEED * MAX_SPEED_MS * timestep/1000.0
@@ -193,6 +204,8 @@ while robot.step(timestep) != -1:
     pose_theta += (distR-distL)/AXLE_LENGTH
 
     # Debugging Code
+    print(f'Waiptoint {i=}')
+
     print(f'Pose {pose_x=} {pose_y=} {pose_theta=}')
 
     print(f'Goal {goal_x=} {goal_y=} {goal_theta=}')
