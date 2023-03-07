@@ -54,16 +54,10 @@ vR = 0
 # You have to MANUALLY figure out the waypoints, one sample is provided for you in the instructions
 # Waypoints, array of (x,y) coordinates to traverse
 # Fill with correct values!!
-
-waypoints = [(-8, -5), (-6, -6), (-3.5, -7),
-             (-0.5, -6.3), (4.5, -6), (9.5, -3.9),
-             (15.9, -2.4), (22, 0.2), (0, 0)]
-
 i = 0
-
-wp = [(2, -1), (2.5, -1), (3.0, 0.7),
-      (5.0, 0.2999), (5.0, 2.1), (6.4, 1.5),
-      (6.1, 2.6), (6.1, 2.6)]
+waypoints = [(2, -1), (2.5, -1), (3.0, 0.7),
+             (5.0, 0.2999), (5.0, 2.1), (6.4, 1.5),
+             (6.1, 2.6), (6.1, 2.6)]
 
 
 # Starting point on map:
@@ -87,9 +81,8 @@ while robot.step(timestep) != -1:
     # 2dArray[rows][columns]
     # goal_x = waypoints[i+1][0] - waypoints[i][0]
     # goal_y = waypoints[i+1][1] - waypoints[i][1]
-
-    goal_x = wp[i][0]
-    goal_y = wp[i][1]
+    goal_x = waypoints[i][0]
+    goal_y = waypoints[i][1]
 
     # print(goal_x)
     # print(goal_y)
