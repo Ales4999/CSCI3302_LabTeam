@@ -49,7 +49,7 @@ pose_theta = 0
 vL = 0
 vR = 0
 
-# TODO
+# TODO STEP 2.9 
 # Create you state and goals (waypoints) variable here
 # You have to MANUALLY figure out the waypoints, one sample is provided for you in the instructions
 # Waypoints, array of (x,y) coordinates to traverse
@@ -87,7 +87,17 @@ while robot.step(timestep) != -1:
     goal_y = waypoints[i+1][j+1] - waypoints[i][j+1]
 
     # print("goal_x, goal_y", goal_x, " ", goal_y)
-    goal_theta = 0.5
+    
+    # Extra Credit 
+    # Extra Credit(5 pts) Have the robot face the microwave(90 degrees rotation 
+    # about the z-axis from the starting position) in the final configuration.
+    # Set goal pose to be facing the microwave, update heading error accordingly 
+    if i == 5: 
+        #last position
+        goal_theta = 1.5708
+    else: 
+        goal_theta = 0.5
+
 
     ## Position Error : rho ##
     # sqrt( (xr-xg)^2 + (yr - yg)^2)
@@ -149,11 +159,19 @@ while robot.step(timestep) != -1:
     # 2.7 clamp the velocities if they exceed MAX_SPEED
     if vL > MAX_SPEED:
         vL = MAX_SPEED
+    elif -vL > MAX_SPEED:
+        vL = - MAX_SPEED
+
     if vR > MAX_SPEED:
         vR = MAX_SPEED
+    elif -vR > MAX_SPEED:
+        vR = - MAX_SPEED
 
     # print("vR after updating: ", vR)
     # print("vL after updating: ", vL)
+
+    # STEP 2.8 Create stopping criteria
+                                                          
 
     # TODO
     # Use Your Lab 2 Odometry code after these 2 comments. We will supply you with our code next week
@@ -162,20 +180,6 @@ while robot.step(timestep) != -1:
     # NOTE that the odometry should ONLY be a function of
     # (vL, vR, MAX_SPEED, MAX_SPEED_MS, timestep, AXLE_LENGTH, pose_x, pose_y, pose_theta)
     # Odometry code. Don't change speeds (vL and vR) after this line
-
-    # Rx_dot = vR/2 + vL/2 #Forward speed of the robot
-    # Rw_dot = vR/d - vL/d #Net rotation in the local frame
-
-    # ix_dot = Rx_dot * math.cos(pose_theta) #Robots x_dot contribution in i coordinate frame
-    # iy_dot = Rx_dot * math.sin(pose_theta) #Robots y_dot contribution in i coordinate frame
-    # itheta_dot = Rw_dot #Robots theta_dot contribution in i coordinate frame
-
-    # if (vR*vL < 0):
-    #     pose_theta += itheta_dot*timestep_s #multiply by change in t to find rotation and add to previous value
-    # #If the robot is moving straight, update its x and y values
-    # else:
-    #     pose_x += ix_dot*timestep_s #multiply by change in t to find displacement and add to previous value
-    #     pose_y += iy_dot*timestep_s #multiply by change in t to find displacement and add to previous value
 
     # Odometry code from Piazza
     distL = vL/MAX_SPEED * MAX_SPEED_MS * timestep/1000.0
