@@ -55,8 +55,9 @@ vR = 0
 # Waypoints, array of (x,y) coordinates to traverse
 # Fill with correct values!!
 
-waypoints = [(-8, -5), (-6, -6), (-5.09, -5.9), (-4.5, -4),
-             (-3.3, -3.8), (-1.7, -2), (-1.7, -1.7)]
+waypoints = [(-8, -5), (-6, -6), (-3.5, -7),
+             (-0.5, -6.3), (4.5, -6), (9.5, -3.9), (15.9, -2.4), (22, 0.2),
+             (0, 0)]
 
 i = 0
 
@@ -82,8 +83,9 @@ while robot.step(timestep) != -1:
     # 2dArray[rows][columns]
     goal_x = waypoints[i+1][0] - waypoints[i][0]
     goal_y = waypoints[i+1][1] - waypoints[i][1]
-    print(goal_x)
-    print(goal_y)
+
+    # print(goal_x)
+    # print(goal_y)
     # print("goal_x, goal_y", goal_x, " ", goal_y)
 
     # Extra Credit
@@ -101,11 +103,11 @@ while robot.step(timestep) != -1:
     alpha = math.atan2((goal_y-pose_y), (goal_x-pose_x))-pose_theta
     # print("-> Bearing Error:", alpha)
 
-    if i == 5:
-        # last position
-        goal_theta = 1.5708
-    else:
-        goal_theta = alpha
+    # if i == 7:
+    #     # last position
+    #     goal_theta = 1.5708
+    # else:
+    goal_theta = alpha
 
     ## Heading Error: nu ##
     # angle to point in correct direction
@@ -142,7 +144,7 @@ while robot.step(timestep) != -1:
             # Prioritize heading error
             p1 = 1
             p2 = 1
-            p3 = 10
+            p3 = 20
 
     # STEP 1: Inverse Kinematics Equations (vL and vR as a function dX and dTheta)
     # Note that vL and vR in code is phi_l and phi_r on the slides/lecture
@@ -178,11 +180,15 @@ while robot.step(timestep) != -1:
 
     # STEP 2.8 Create stopping criteria
     # check for the error values to pass a threshold
-    if abs(rho) <= 0.5 and abs(nu) <= 0.5 and alpha <= abs(0.5):
-        vL = 0
-        vR = 0
+    # if abs(rho) <= 0.5 and abs(nu) <= 0.5 and alpha <= abs(0.5):
+    if abs(rho) <= 0.5 and alpha <= abs(0.5):
         i += 1
-        # exit
+        # print("Curr:", waypoints[i][0], waypoints[i][1])
+        # print("Next:", waypoints[i+1][0], waypoints[i+1][1])
+        if i == 7:
+            vL = 0
+            vR = 0
+            timestep = -1
 
         # TODO
         # Use Your Lab 2 Odometry code after these 2 comments. We will supply you with our code next week
@@ -204,16 +210,13 @@ while robot.step(timestep) != -1:
     pose_theta += (distR-distL)/AXLE_LENGTH
 
     # Debugging Code
-    print(f'Waiptoint {i=}')
 
-    print(f'Pose {pose_x=} {pose_y=} {pose_theta=}')
-
-    print(f'Goal {goal_x=} {goal_y=} {goal_theta=}')
-
-    print(f'Error values {rho=} {alpha=} {nu=}')
-
-    print(f'Speeds {vR=} {vL=}')
-    print("---------------------------------")
+    # print(f'Waiptoint {i=}')
+    # print(f'Pose {pose_x=} {pose_y=} {pose_theta=}')
+    # print(f'Goal {goal_x=} {goal_y=} {goal_theta=}')
+    # print(f'Error values {rho=} {alpha=} {nu=}')
+    # print(f'Speeds {vR=} {vL=}')
+    # print("---------------------------------")
 
     ########## End Odometry Code ##################
 
