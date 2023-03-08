@@ -204,9 +204,7 @@ while robot.step(timestep) != -1:
     distR = vR/MAX_SPEED * MAX_SPEED_MS * timestep/1000.0
 
     pose_x += (distL+distR) / 2.0 * math.cos(pose_theta)
-
     pose_y += (distL+distR) / 2.0 * math.sin(pose_theta)
-
     pose_theta += (distR-distL)/AXLE_LENGTH
 
     # Debugging Code
