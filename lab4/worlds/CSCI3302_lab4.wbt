@@ -1,4 +1,12 @@
-#VRML_SIM R2022a utf8
+#VRML_SIM R2023a utf8
+
+EXTERNPROTO "https://raw.githubusercontent.com/cyberbotics/webots/R2023a/projects/objects/factory/containers/protos/CardboardBox.proto"
+EXTERNPROTO "https://raw.githubusercontent.com/cyberbotics/webots/R2023a/projects/robots/gctronic/e-puck/protos/E-puck.proto"
+EXTERNPROTO "https://raw.githubusercontent.com/cyberbotics/webots/R2023a/projects/robots/gctronic/e-puck/protos/E-puckGroundSensors.proto"
+EXTERNPROTO "https://raw.githubusercontent.com/cyberbotics/webots/R2023a/projects/objects/floors/protos/RectangleArena.proto"
+EXTERNPROTO "https://raw.githubusercontent.com/cyberbotics/webots/R2023a/projects/objects/backgrounds/protos/TexturedBackground.proto"
+EXTERNPROTO "https://raw.githubusercontent.com/cyberbotics/webots/R2023a/projects/objects/backgrounds/protos/TexturedBackgroundLight.proto"
+
 WorldInfo {
   info [
     "CSCI 3302 Lab 4: Mapping"
@@ -9,8 +17,8 @@ WorldInfo {
   lineScale 0.04
 }
 Viewpoint {
-  orientation 0.6573631318069424 -0.7298732116035753 -0.18750682100779986 3.553218925088261
-  position 0.6915369584109253 1.6563967218129099 1.5756151174337665
+  orientation 0.6943613852581058 -0.7019024584471701 -0.15872997665300423 3.8410541952675636
+  position 0.3389170911307863 1.0342627226629164 1.441689242022242
 }
 TexturedBackground {
 }
@@ -33,7 +41,7 @@ RectangleArena {
 E-puck {
   translation 0.197 0 0.678
   rotation -0.5773509358554485 0.5773509358554485 0.5773489358556708 2.0944
-  controller "my_controller"
+  controller "csci3302_lab4"
   turretSlot [
     Display {
       width 300
