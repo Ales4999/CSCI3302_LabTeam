@@ -66,10 +66,11 @@ lidar.enablePointCloud()
 # and there are LIDAR_ANGLE_BINS. An easy way to generate the
 # array that contains all the angles is to use linspace from
 # the numpy package.
-# linspace( start, stop, num) : array
-lidar_readings = []
-lidar_angles = np.linspace(0, LIDAR_ANGLE_RANGE, LIDAR_ANGLE_BINS)
-
+# Part 1.1
+lidar_sensor_readings = []
+# Part 1.2
+# linspace(startNum, stopNum, numIndeces)
+lidar_offsets = np.linspace(-math.pi/4, math.pi/4, LIDAR_ANGLE_BINS)
 
 #### End of Part 1 #####
 
@@ -92,6 +93,13 @@ while robot.step(SIM_TIMESTEP) != -1:
     # Come up with a way to turn the robot pose (in world coordinates)
     # into coordinates on the map. Draw a red dot using display.drawPixel()
     # where the robot moves.
+    # hint: display.drawLine(int x1, int y1, int x2, y2)
+
+    scale = 300
+    display_x = round(pose_x * scale)
+    display_y = round(pose_y * scale)
+    display.setColor(0xFF0000)
+    display.drawPixel(display_x, display_y)
 
     # Part 3: Convert Lidar data into world coordinates
     #
@@ -101,6 +109,12 @@ while robot.step(SIM_TIMESTEP) != -1:
     # rx and ry into world coordinates wx and wy.
     # The arena is 1x1m2 and its origin is in the top left of the arena.
 
+    xR = []
+    yR = []
+    for i in range(LIDAR_ANGLE_BINS):
+        xR[i] = lidar_sensor_readings[i] * math.cos(lidar_offsets[i])
+        yR[i] = lidar_sensor_readings[i] * math.sin(lidar_offsets[i])
+    
     # Part 4: Draw the obstacle and free space pixels on the map
 
     # DO NOT MODIFY THE FOLLOWING CODE
