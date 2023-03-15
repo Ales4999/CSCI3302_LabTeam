@@ -39,8 +39,8 @@ RectangleArena {
   }
 }
 E-puck {
-  translation 0.197 0 0.678
-  rotation -0.5773509358554485 0.5773509358554485 0.5773489358556708 2.0944
+  translation 0.193997 -4.3091e-05 0.688716
+  rotation -0.5827651803337992 0.5746581778251274 0.5745891778037757 2.08622
   controller "csci3302_lab4"
   turretSlot [
     Display {
@@ -683,8 +683,8 @@ E-puck {
   ]
 }
 Solid {
-  translation 0.0454745 0.06 0.293168
-  rotation 1 0 0 -1.5707953071795862
+  translation 0.0498771337903729 0.04968967347308106 0.29316783023628157
+  rotation -0.999990460382688 0.003089072638334128 -0.0030881667465461507 1.5708079505321706
   children [
     DEF Cylinder Shape {
       appearance PBRAppearance {
@@ -706,8 +706,8 @@ Solid {
   ]
 }
 Solid {
-  translation 0.657166 0.06 0.769093
-  rotation 1 0 0 -1.5707953071795862
+  translation 0.657166 0.049691578419126914 0.7690927119011697
+  rotation -1 5.028507880814352e-17 4.181457286689106e-17 1.5707997321608562
   children [
     DEF Cylinder Shape {
       appearance PBRAppearance {
@@ -730,8 +730,8 @@ Solid {
   ]
 }
 Solid {
-  translation 0.498042 0.06 0.723455
-  rotation 1 0 0 -1.5707953071795862
+  translation 0.498042 0.04969142487169346 0.7234547119016866
+  rotation -1 5.337841467471881e-17 3.8682816358618756e-17 1.570799732160856
   children [
     DEF Cylinder Shape {
       appearance PBRAppearance {
@@ -754,8 +754,8 @@ Solid {
   ]
 }
 Solid {
-  translation 0.611659 0.06 0.218708
-  rotation 1 0 0 -1.5707953071795862
+  translation 0.611659 0.04968972666830175 0.2187077119074047
+  rotation -1 5.698859872275967e-17 1.2498012666974975e-17 1.5707997321608562
   children [
     DEF Cylinder Shape {
       appearance PBRAppearance {
@@ -778,8 +778,8 @@ Solid {
   ]
 }
 Solid {
-  translation 0.334421 0.06 0.214491
-  rotation 1 0 0 -1.5707953071795862
+  translation 0.334421 0.04968971248035472 0.2144907119074524
+  rotation -1 4.636673317901823e-17 6.627131822403787e-17 1.570799732160856
   children [
     DEF Cylinder Shape {
       appearance PBRAppearance {
@@ -802,8 +802,8 @@ Solid {
   ]
 }
 Solid {
-  translation 0.936341 0.06 0.602869
-  rotation 1 0 0 1.5708
+  translation 0.936341 0.04969101916392479 0.6028685793379617
+  rotation 1 -4.092749008240531e-17 -2.8553314378636875e-17 1.57079292371712
   children [
     DEF Cylinder Shape {
       appearance PBRAppearance {
@@ -826,8 +826,8 @@ Solid {
   ]
 }
 Solid {
-  translation 0.0834026 0.06 0.472308
-  rotation 1 0 0 -1.5707953071795862
+  translation 0.0834026 0.049690579896513376 0.47230771190453175
+  rotation -1 -1.2039909930885164e-17 3.749716508694329e-17 1.5707997321608562
   children [
     DEF Cylinder Shape {
       appearance PBRAppearance {
@@ -850,8 +850,8 @@ Solid {
   ]
 }
 Solid {
-  translation 0.830853 0.06 0.495083
-  rotation 1 0 0 1.5708
+  translation 0.830853 0.04969065652174806 0.49508257933918276
+  rotation 1 -1.244110542987337e-17 -3.4636071861651745e-17 1.5707929237171203
   children [
     DEF Cylinder Shape {
       appearance PBRAppearance {

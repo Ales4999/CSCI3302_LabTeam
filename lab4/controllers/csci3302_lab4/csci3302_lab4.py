@@ -74,6 +74,8 @@ lidar_offsets = np.linspace(-math.pi/4, math.pi/4, LIDAR_ANGLE_BINS)
 
 #### End of Part 1 #####
 
+prevPose = []
+z = 0
 # Main Control Loop:
 while robot.step(SIM_TIMESTEP) != -1:
 
@@ -96,6 +98,10 @@ while robot.step(SIM_TIMESTEP) != -1:
     # hint: display.drawLine(int x1, int y1, int x2, y2)
 
     scale = 300
+    display.setColor(0xFF0000)  # red
+    display_x = round(pose_x * scale)
+    display_y = round(pose_y * scale)
+    display.drawPixel(display_x, display_y)
 
     # Part 3: Convert Lidar data into world coordinates
     #
@@ -113,30 +119,27 @@ while robot.step(SIM_TIMESTEP) != -1:
     for i in range(len(lidar_sensor_readings)):
         if (lidar_sensor_readings[i] > LIDAR_SENSOR_MAX_RANGE):
             lidar_sensor_readings[i] = LIDAR_SENSOR_MAX_RANGE
-            # Nada
         # Convert to Robot frame of reference
         xR.append(lidar_sensor_readings[i] * math.cos(lidar_offsets[i]))
         yR.append(lidar_sensor_readings[i] * math.sin(lidar_offsets[i]))
         # Convert robot coordinates to world coordinates
-        xW.append(math.cos(pose_theta-(math.pi/2)) *
-                  xR[i] + yR[i]*math.sin(pose_theta-(math.pi/2)) + pose_x)
-        yW.append(-math.sin(pose_theta-(math.pi/2)) *
-                  xR[i] + yR[i]*math.cos(pose_theta-(math.pi/2)) + pose_y)
-
-        display_xR = round(pose_x * scale)
-        display_yR = round(pose_y * scale)
-        display_xW = round(xW[i] * scale)
-        display_yW = round(yW[i] * scale)
-        if (display != 0x0000FF or display != 0xFF0000):
+        xW.append(math.cos(pose_theta-(math.pi/2)) * xR[i] + yR[i]*math.sin(pose_theta-(math.pi/2)) + pose_x)
+        yW.append(-math.sin(pose_theta-(math.pi/2)) * xR[i] + yR[i]*math.cos(pose_theta-(math.pi/2)) + pose_y)
+        if(lidar_sensor_readings[i] != LIDAR_SENSOR_MAX_RANGE):
+            display_xW = round(xW[i] * scale)
+            display_yW = round(yW[i] * scale)
             display.setColor(0xFFFFFF)  # white
-        display.drawLine(display_xR, display_yR, display_xW, display_yW)
-        display.setColor(0x0000FF)  # blue
-        display.drawPixel(display_xW, display_yW)
-
-    display_x = round(pose_x * scale)
-    display_y = round(pose_y * scale)
+            display.drawLine(display_x, display_y, display_xW, display_yW)
+            display.setColor(0xFF0000)  # red
+            display.drawPixel(display_x, display_y)
+            display.setColor(0x0000FF)  # blue
+            display.drawPixel(display_xW, display_yW)
+    print(len(prevPose))
+    if(len(prevPose) < 3500):
+        prevPose.append((display_x,display_y))
     display.setColor(0xFF0000)  # red
-    display.drawPixel(display_x, display_y)
+    for i in range(len(prevPose)):
+                display.drawPixel(prevPose[i][0], prevPose[i][1])
 
     # print("\n ----- \n xR: %f yR: %f " % (xR[10], yR[10]))
     # print("xW: %f yW: %f \n" % (xW[10], yW[10]))
