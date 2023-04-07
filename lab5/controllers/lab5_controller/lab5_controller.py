@@ -87,7 +87,7 @@ map = None
 ##################### IMPORTANT #####################
 # Set the mode here. Please change to 'autonomous' before submission
 mode = 'manual'  # Part 1.1: manual mode
-# mode = 'planner'
+#mode = 'planner'
 # mode = 'autonomous'
 
 
@@ -133,7 +133,9 @@ if mode == 'planner':
 # Part 1.2: Map Initialization
 
 # Initialize your map data structure here as a 2D floating point array
-map = np.zeros(shape=[360, 360])
+# map = np.zeros(shape=[360, 360])
+#notice that the floor is 12m by 12m...
+map = np.zeros(shape=[1200, 1200])
 waypoints = []
 
 if mode == 'autonomous':
@@ -175,26 +177,32 @@ while robot.step(timestep) != -1 and mode != 'planner':
         ry = -math.sin(alpha)*rho
 
         t = pose_theta + np.pi/2.
+        
         # Convert detection from robot coordinates into world coordinates
         wx = math.cos(t)*rx - math.sin(t)*ry + pose_x
         wy = math.sin(t)*rx + math.cos(t)*ry + pose_y
 
         ################ ^ [End] Do not modify ^ ##################
 
-        # print("Rho: %f Alpha: %f rx: %f ry: %f wx: %f wy: %f" % (rho,alpha,rx,ry,wx,wy))
+        # print("Rho: %f Alpha: %f rx: %f ry: %f wx: %f wy: %f, x: %f, y: %f" % (rho,alpha,rx,ry,wx,wy,x,y))
+
         if wx >= 12:
             wx = 11.999
         if wy >= 12:
             wy = 11.999
         if rho < LIDAR_SENSOR_MAX_RANGE:
+        
             # Part 1.3: visualize map gray values.
 
             x = 360-abs(int(wx*30))
             y = abs(int(wy*30))
 
-            increment_value = 5e-3
-
+            increment_value = 5e-4
+            
+            #need to bound increment value? 
+            #or index?
             map[x, y] += increment_value
+            
             # make sure the value does not exceed 1
             map = np.clip(map, 0, 1)  # Keep values within [0,1]
 
@@ -205,15 +213,25 @@ while robot.step(timestep) != -1 and mode != 'planner':
             # convert the gray scale
             # set g to a vallue depending on our map
             g = map[x, y]
+            
             color = (g*256**2+g*256+g)*255
+            
             display.setColor(int(color))
             display.drawPixel(x, y)
+            
+            #1.4 need to clip the map values before drowing them?
+            
+
+            #draw robots pose
 
     # Draw the robot's current pose on the 360x360 display
-    x = 360-abs(int(wx*30))
-    y = abs(int(wy*30))
+    # x = 360-abs(int(wx*30))
+    # y = abs(int(wy*30))
+    
+    # print("-> robot's pose: %f , %f" % (x,y) )
+    #draw the robots line
     display.setColor(int(0xFF0000))
-    display.drawPixel(x, y)
+    display.drawPixel(pose_x, pose_x)
 
     ###################
     #
