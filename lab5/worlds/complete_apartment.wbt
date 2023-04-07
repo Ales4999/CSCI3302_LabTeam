@@ -1,4 +1,4 @@
-#VRML_SIM R2022b utf8
+#VRML_SIM R2023a utf8
 
 EXTERNPROTO "https://raw.githubusercontent.com/cyberbotics/webots/R2022b/projects/objects/backgrounds/protos/TexturedBackground.proto"
 EXTERNPROTO "https://raw.githubusercontent.com/cyberbotics/webots/R2022b/projects/appearances/protos/Roughcast.proto"
@@ -90,7 +90,7 @@ WorldInfo {
   title "Complete apartment including two bedrooms, one bathroom, one restroom, stairs and a balcony"
 }
 Viewpoint {
-  orientation -0.5968753256011547 0.5631643506993419 0.5714768234932229 2.038907747564379
+  orientation -0.6075908117594678 0.5701839335898237 0.552922858400253 2.0728712791264097
   position -8.45760963068297 -7.409344208467534 27.690281494663296
   exposure 0.5
   ambientOcclusionRadius 1

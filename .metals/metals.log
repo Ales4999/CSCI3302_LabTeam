@@ -10,3 +10,6 @@ SLF4J: See https://www.slf4j.org/codes.html#ignoredBindings for an explanation.
 2023.04.07 14:12:54 WARN  no build tool detected in workspace '/Users/littlelion/Library/Mobile Documents/com~apple~CloudDocs/MacbookAir/spring2023/CSCI3302_LabTeam'. The most common cause for this problem is that the editor was opened in the wrong working directory, for example if you use sbt then the workspace directory should contain build.sbt. [0m
 Apr 07, 2023 2:12:59 PM org.eclipse.lsp4j.jsonrpc.services.GenericEndpoint notify
 INFO: Unsupported notification method: $/setTrace
+2023.04.07 14:15:41 INFO  Shutting down server[0m
+2023.04.07 14:15:41 INFO  shutting down Metals[0m
+2023.04.07 14:15:41 INFO  Exiting server[0m

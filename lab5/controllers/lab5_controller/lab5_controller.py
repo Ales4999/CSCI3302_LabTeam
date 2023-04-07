@@ -86,8 +86,8 @@ map = None
 
 ##################### IMPORTANT #####################
 # Set the mode here. Please change to 'autonomous' before submission
-mode = 'manual'  # Part 1.1: manual mode
-#mode = 'planner'
+# mode = 'manual'  # Part 1.1: manual mode
+mode = 'planner'
 # mode = 'autonomous'
 
 
@@ -116,6 +116,14 @@ if mode == 'planner':
         pass
 
     # Part 2.1: Load map (map.npy) from disk and visualize it
+    map = np.load('map.npy')
+    
+    # visualize the map using matplotlib
+    plt.imshow(np.fliplr(map))
+    plt.title('Map')
+    plt.xlabel('X')
+    plt.ylabel('Y')
+    plt.show()  # comment to not show map 
 
     # Part 2.2: Compute an approximation of the “configuration space”
 
@@ -192,7 +200,7 @@ while robot.step(timestep) != -1 and mode != 'planner':
             wy = 11.999
         if rho < LIDAR_SENSOR_MAX_RANGE:
         
-            # Part 1.3: visualize map gray values.
+            # ---- Part 1.3: visualize map gray values. ---- 
 
             x = 360-abs(int(wx*30))
             y = abs(int(wy*30))
@@ -218,9 +226,7 @@ while robot.step(timestep) != -1 and mode != 'planner':
             
             display.setColor(int(color))
             display.drawPixel(x, y)
-            
-            #1.4 need to clip the map values before drowing them?
-            
+           
 
             #draw robots pose
 
@@ -232,6 +238,7 @@ while robot.step(timestep) != -1 and mode != 'planner':
     #draw the robots line
     display.setColor(int(0xFF0000))
     display.drawPixel(pose_x, pose_x)
+    
 
     ###################
     #
@@ -258,21 +265,33 @@ while robot.step(timestep) != -1 and mode != 'planner':
             vL = 0
             vR = 0
         elif key == ord('S'):
-            # Part 1.4: Filter map and save to filesystem
+        
+            #---- 1.4 need to clip the map values before drowing them? -----        
             # NumPy you can use array>0.5, to get an array of Booleans with “True”
             # entries indicating entries in the original array that satisfy the
             # provided criteria (e.g., all values greater than 0.5).
-            map = map > 0.5  # Booloan array to keep threshold
+            
             # You can then multiply this array (np.multiply) with 1 to convert it back
             # to an integer array. Use NumPy’s save method to store your data structure,
             # making sure to name the file map.npy.
-            map = np.multiply(map, 1)
-
-            print("Map file saved")
+                                    
+            # set a threshold value
+            threshold_value = 0.5
+            
+            # threshold the map data to reject all values below threshold_value
+            thresholded_map = np.multiply(map > threshold_value, 1)
+            
+            map_name = 'map.npy'
+            
+            # save the thresholded map data to a file
+            np.save(map_name, thresholded_map)
+            
+            print("Map file saved as %s" % (map_name))
+            
         elif key == ord('L'):
             # You will not use this portion in Part 1 but here's an example for loading saved a numpy array
             map = np.load("map.npy")
-            print("Map loaded")
+            print("Map loaded...")
         else:  # slow down
             vL *= 0.75
             vR *= 0.75
