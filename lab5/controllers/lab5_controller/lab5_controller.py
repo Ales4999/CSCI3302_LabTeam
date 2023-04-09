@@ -86,8 +86,8 @@ map = None
 
 ##################### IMPORTANT #####################
 # Set the mode here. Please change to 'autonomous' before submission
-mode = 'manual'  # Part 1.1: manual mode
-# mode = 'planner'
+# mode = 'manual'  # Part 1.1: manual mode
+mode = 'planner'
 # mode = 'autonomous'
 
 
@@ -143,8 +143,8 @@ if mode == 'planner':
 # Initialize your map data structure here as a 2D floating point array
 # map = np.zeros(shape=[360, 360])
 #notice that the floor is 12m by 12m...
-# map = np.zeros(shape=[360, 360])
-map = np.zeros(shape=[1200, 1200])
+map = np.zeros(shape=[360, 360])
+# map = np.zeros(shape=[372, 372])
 
 waypoints = []
 
@@ -203,9 +203,13 @@ while robot.step(timestep) != -1 and mode != 'planner':
         if rho < LIDAR_SENSOR_MAX_RANGE:
         
             # ---- Part 1.3: visualize map gray values. ---- 
-
             x = 360-abs(int(wx*30))
             y = abs(int(wy*30))
+            
+            if x >= 360:
+                continue
+            if y >= 360 :
+                continue
             
             # scale = 300
             # display.setColor(0xFF0000)  # red
@@ -311,13 +315,19 @@ while robot.step(timestep) != -1 and mode != 'planner':
             map_name = 'map.npy'
             
             # save the thresholded map data to a file
-            np.save(map_name, thresholded_map)
+            map_trimmed = thresholded_map[0:800, 0:360]
+            np.save(map_name, map_trimmed)
             
             print("Map file saved as %s" % (map_name))
             
         elif key == ord('L'):
             # You will not use this portion in Part 1 but here's an example for loading saved a numpy array
             map = np.load("map.npy")
+            plt.imshow(np.fliplr(map))
+            plt.title('Map')
+            plt.xlabel('X')
+            plt.ylabel('Y')
+            plt.show() 
             print("Map loaded...")
         else:  # slow down
             vL *= 0.75
