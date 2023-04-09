@@ -86,8 +86,8 @@ map = None
 
 ##################### IMPORTANT #####################
 # Set the mode here. Please change to 'autonomous' before submission
-# mode = 'manual'  # Part 1.1: manual mode
-mode = 'planner'
+mode = 'manual'  # Part 1.1: manual mode
+# mode = 'planner'
 # mode = 'autonomous'
 
 
@@ -116,7 +116,7 @@ if mode == 'planner':
         pass
 
     # Part 2.1: Load map (map.npy) from disk and visualize it
-    map = np.load('map.npy')
+    map = np.load('./map.npy')
     
     # visualize the map using matplotlib
     plt.imshow(np.fliplr(map))
@@ -143,7 +143,9 @@ if mode == 'planner':
 # Initialize your map data structure here as a 2D floating point array
 # map = np.zeros(shape=[360, 360])
 #notice that the floor is 12m by 12m...
+# map = np.zeros(shape=[360, 360])
 map = np.zeros(shape=[1200, 1200])
+
 waypoints = []
 
 if mode == 'autonomous':
@@ -204,15 +206,23 @@ while robot.step(timestep) != -1 and mode != 'planner':
 
             x = 360-abs(int(wx*30))
             y = abs(int(wy*30))
+            
+            # scale = 300
+            # display.setColor(0xFF0000)  # red
+            # display_x = round(pose_x * scale)
+            # display_y = round(pose_y * scale)
 
-            increment_value = 5e-4
+            increment_value = 5e-3
             
             #need to bound increment value? 
             #or index?
             map[x, y] += increment_value
             
+            #check what is getting stored in the map 
+            # print(map[x][y])
+            
             # make sure the value does not exceed 1
-            map = np.clip(map, 0, 1)  # Keep values within [0,1]
+            #map = np.clip(map, None, 1)  # Keep values within [0,1]
 
             # You will eventually REPLACE the following lines with a more robust version of the map
             # with a grayscale drawing containing more levels than just 0 and 1.
@@ -220,7 +230,8 @@ while robot.step(timestep) != -1 and mode != 'planner':
             # draw map on diplsay
             # convert the gray scale
             # set g to a vallue depending on our map
-            g = map[x, y]
+            #g_map = min( map[x][y], 1.0)
+            g = min( map[x][y], 1.0)
             
             color = (g*256**2+g*256+g)*255
             
@@ -231,9 +242,8 @@ while robot.step(timestep) != -1 and mode != 'planner':
             #draw robots pose
 
     # Draw the robot's current pose on the 360x360 display
-    # x = 360-abs(int(wx*30))
-    # y = abs(int(wy*30))
-    
+    #x = 360-abs(int(wx*30))
+    #y = abs(int(wy*30))
     # print("-> robot's pose: %f , %f" % (x,y) )
     #draw the robots line
     display.setColor(int(0xFF0000))
@@ -278,9 +288,26 @@ while robot.step(timestep) != -1 and mode != 'planner':
             # set a threshold value
             threshold_value = 0.5
             
+            # print("-> our map values BEFORE clipping:")
+            # for row in map:
+                # for element in map:
+                    # print(element, end=" ")
+                # print() # Move to the next line after printing each row
+                        
+            # map = np.clip(map, 0, 1)  # Keep values within [0,1]
+            # print("-> our map values AFTER clipping:")
+            # print(map)
+            #print(map[10][10])
+            
             # threshold the map data to reject all values below threshold_value
             thresholded_map = np.multiply(map > threshold_value, 1)
             
+            # print("-> thresholded_map:")
+            # for row in thresholded_map:
+                # for element in thresholded_map:
+                    # print(element, end=" ")
+                # print() # Move to the next line after printing each row
+                        
             map_name = 'map.npy'
             
             # save the thresholded map data to a file
