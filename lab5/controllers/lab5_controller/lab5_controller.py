@@ -126,6 +126,29 @@ if mode == 'planner':
     plt.show()  # comment to not show map 
 
     # Part 2.2: Compute an approximation of the “configuration space”
+    # define quadratic kernel
+    kernel_size = 23 #had to guess and check an appropriate value
+    kernel = np.ones((kernel_size, kernel_size))
+    kernel = kernel / np.sum(kernel)  # normalize kernel to sum to 1
+    
+    # convolve binary occupancy grid map with kernel
+    configuration_space = convolve2d(map, kernel, mode='same')
+    configuration_space = configuration_space * 360 #scale
+    
+    # threshold configuration space to create binary configuration space
+    configuration_space[configuration_space < 1] = 0
+    configuration_space[configuration_space >= 1] = 1
+    #save config file
+    np.save('config_space.npy', configuration_space)
+    #load config file
+    config_space = np.load('./config_space.npy')
+
+    # Create a figure
+    fig, ax = plt.subplots()
+    # Plot the configuration space
+    ax.imshow(config_space, cmap='binary')
+    # Show the plot
+    plt.show()
 
     # Part 2.3 continuation: Call path_planner
 
