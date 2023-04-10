@@ -86,8 +86,8 @@ map = None
 
 ##################### IMPORTANT #####################
 # Set the mode here. Please change to 'autonomous' before submission
-# mode = 'manual'  # Part 1.1: manual mode
-mode = 'planner'
+mode = 'manual'  # Part 1.1: manual mode
+#mode = 'planner'
 # mode = 'autonomous'
 
 
@@ -127,7 +127,7 @@ if mode == 'planner':
 
     # Part 2.2: Compute an approximation of the “configuration space”
     # define quadratic kernel
-    kernel_size = 23 #had to guess and check an appropriate value
+    kernel_size = 22 #had to guess and check an appropriate value
     kernel = np.ones((kernel_size, kernel_size))
     kernel = kernel / np.sum(kernel)  # normalize kernel to sum to 1
     
@@ -219,20 +219,20 @@ while robot.step(timestep) != -1 and mode != 'planner':
 
         # print("Rho: %f Alpha: %f rx: %f ry: %f wx: %f wy: %f, x: %f, y: %f" % (rho,alpha,rx,ry,wx,wy,x,y))
 
-        if wx >= 12:
-            wx = 11.999
-        if wy >= 12:
-            wy = 11.999
+        if wx <= -12:
+            wx = -11.999
+        if wy <= -12:
+            wy = -11.999
         if rho < LIDAR_SENSOR_MAX_RANGE:
         
             # ---- Part 1.3: visualize map gray values. ---- 
-            x = 360-abs(int(wx*30))
+            x = abs(int(wx*30))
             y = abs(int(wy*30))
             
-            if x >= 360:
-                continue
-            if y >= 360 :
-                continue
+            # if x >= 360:
+                # continue
+            # if y >= 360 :
+                # continue
             
             # scale = 300
             # display.setColor(0xFF0000)  # red
@@ -258,7 +258,7 @@ while robot.step(timestep) != -1 and mode != 'planner':
             # convert the gray scale
             # set g to a vallue depending on our map
             #g_map = min( map[x][y], 1.0)
-            g = min( map[x][y], 1.0)
+            g = min(map[x][y], 1.0)
             
             color = (g*256**2+g*256+g)*255
             
@@ -272,9 +272,10 @@ while robot.step(timestep) != -1 and mode != 'planner':
     #x = 360-abs(int(wx*30))
     #y = abs(int(wy*30))
     # print("-> robot's pose: %f , %f" % (x,y) )
+    
     #draw the robots line
     display.setColor(int(0xFF0000))
-    display.drawPixel(pose_x, pose_x)
+    display.drawPixel(abs(int(pose_x*30)), abs(int(pose_y*30)))
     
 
     ###################
