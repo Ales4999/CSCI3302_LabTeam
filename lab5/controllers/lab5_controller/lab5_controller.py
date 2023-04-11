@@ -101,10 +101,10 @@ if mode == 'planner':
     # use the odometry from part 1?
     # wx: -9.711103 wy: -4.925535
     # start_w = (-6.839398,  -6.034829)  # (Pose_X, Pose_Y) in meters
-    start_w = (-9.711103,  -4.925535)  # (Pose_X, Pose_Y) in meters
+    start_w = (-7.866666,  -4.666667)  # (Pose_X, Pose_Y) in meters
 
     # corridor outside the bathroom: wx: -6.835060 wy: -7.936140
-    end_w = (-6.835060, -7.936140)  # (Pose_X, Pose_Y) in meters
+    end_w = (-10.3, -7)  # (Pose_X, Pose_Y) in meters
 
     # Convert the start_w and end_w from the webots coordinate frame into the map frame
     # (x, y) in 360x360 map
@@ -120,47 +120,82 @@ if mode == 'planner':
         :param end: A tuple of indices representing the end cell in the map
         :return: A list of tuples as a path from the given start to the given end in the given maze
         '''
+        # print("entered path_planning")
+
+        # check if the start and end nodes are valid
+        # if the start or end nodes are obstacles
+        if map[start[0], start[1]] == 1 or map[end[0], end[1]] == 1:
+            print("-> Err: start or end nodes are obstacles")
+            print("-> Err: start node: %s, and end node: %s " %
+                  (map[start[0], start[1]], map[end[0], end[1]]))
+            return []
+        # if the nodes are out of bounds
+        if start[0] < 0 or start[0] >= map.shape[0] or start[1] < 0 or start[1] >= map.shape[1]:
+            print("start node is out of bounds")
+            return []
+        if end[0] < 0 or end[0] >= map.shape[0] or end[1] < 0 or end[1] >= map.shape[1]:
+            print("end node is out of bounds")
+            return []
 
         # keep track of the visted nodes
         visited = set()
-
-        distances = []
-        parent = []
+        # init dictionaries to keep track of distance from start and predecessor
+        distances = {}
+        parent = {}
+        free_count = 0
 
         # Initialize distances
-        for node in map:
-            # free space
-            if node == 0:
-                distances[node] = float('inf')
-                parent[node] = None
-            # obstacle, do not include in map
-            if node == 1:
-                distances[node] = -1
-                parent[node] = -1
+        for i in range(map.shape[0]):
+            for j in range(map.shape[1]):
+                # free space
+                if map[i, j] == 0:
+                    # keep track of how many free spaces in map
+                    free_count += 1
+                    # init distance for node
+                    distances[(i, j)] = float('inf')
+                    # init parent for node
+                    parent[(i, j)] = None
+                # obstacle, do not include in map
+                else:
+                    distances[(i, j)] = -1
+                    parent[(i, j)] = -1
 
         # init the first node
         distances[start] = 0
-        parent[start] = 0
+        parent[start] = None
 
-        while len(visited) < len(map):
+        print("finished init, entering while loop")
+
+        while len(visited) < free_count:
+            # print("iterating through the while loop")
             # Find the next node with smallest distance
             curr = None
 
-            for node in map:
-                if (node not in visited) and (distances[node] != -1) and (curr is None or distances[node] < distances[curr]):
-                    curr = node
+            for i in range(map.shape[0]):
+                for j in range(map.shape[1]):
+                    node = (i, j)
+                    # and (curr is None or distances[node] < distances[curr])
+                    if (node not in visited) and (distances[node] != -1):
+                        curr = node
 
-            # check if all node have been visited or smallest path is still inf
-            if curr is None or distances[curr] == float('inf'):
-                return None
+            # print("passing curr node finding...")
+
+            # check if all nodes have been visited or smallest path is still inf
+            # or distances[curr] == float('inf')
+            if curr is None:
+                return []
 
             # mark the curr node as visited
             visited.add(curr)
 
             # Update distances to adjacent nodes
-            for neighbor in map[curr].items():
-                # check that the dist is valid
-                if distances[neighbor] == -1:
+            # left, right, down, up
+            for neighbor in [(curr[0]-1, curr[1]), (curr[0]+1, curr[1]), (curr[0], curr[1]-1), (curr[0], curr[1]+1)]:
+                # check that the neighbor is within the map boundaries
+                if neighbor[0] < 0 or neighbor[0] >= map.shape[0] or neighbor[1] < 0 or neighbor[1] >= map.shape[1]:
+                    continue
+                # check that the neighbor is not an obstacle
+                if map[neighbor[0], neighbor[1]] == 1:
                     continue
                 # the distance for the neighbor
                 distance = distances[curr] + 1
@@ -168,10 +203,12 @@ if mode == 'planner':
                 if distance < distances[neighbor]:
                     # if new distance smaller, update
                     distances[neighbor] = distance
+                    parent[neighbor] = curr
 
+        print("passing update distance while loop...")
         # If we didn't reach the end node, there is no path
         if end not in visited:
-            return None
+            return []
 
         # Trace back the path from end to start
         dij_path = [end]
@@ -179,21 +216,16 @@ if mode == 'planner':
         while dij_path[-1] != start:
             # last node
             last_node = dij_path[-1]
+            # add its parent to the path
+            dij_path.append(parent[last_node])
 
-            for neighbor in map[last_node].items():
-                # check again if neighbor is not obstacle
-                if distances[neighbor] == -1:
-                    continue
-                # check the distance of the neighbor
-                if distances[neighbor] + 1 == distances[last_node]:
-                    # adjacent node, append to path
-                    dij_path.append(neighbor)
-                    break
+        print("passing path finding while loop...")
         # Reverse the path and return it
         dij_path.reverse()
         # make the path a list of tuples
         path_tuples = [(node[1], node[0]) for node in dij_path]
         # return a list of tuples
+        print("returning path...")
         return path_tuples
 
     # Part 2.1: Load map (map.npy) from disk and visualize it
@@ -230,17 +262,28 @@ if mode == 'planner':
     # Plot the configuration space
     ax.imshow(config_space, cmap='binary')
     # Show the plot
-    plt.show()
+    # plt.show()
 
     # Part 2.3 continuation: Call path_planner
-    path = path_planner(map, start, end)
+
+    print("-> Start %s and end %s nodes: " % (start, end))
+    # start: 235, 140
+    # END: map[309][210]: 0.0
+    # for i in range(290, 310):
+    #     for j in range(configuration_space.shape[1]):
+    #         if configuration_space[i][j] == 0 and j > 100:
+    #             print("map[%i][%i]: %s" % (i, j, configuration_space[i][j]))
+
+    path = path_planner(configuration_space, start, end)
+    print("-> excited path_planning...")
 
     # check if valid
-    if (path == None):
-        print("Shit failed...")
+    if (path == []):
+        print("-> Shit failed...")
     else:
         print("-> Printing the path from algo: ")
-        print(path)
+        for i in range(len(path)):
+            print(path[i])
 
     # convert back to world coordinates
     # (abs(int(start_w[0]*30)), abs(int(start_w[1]*30)))
