@@ -90,8 +90,8 @@ map = None
 ##################### IMPORTANT #####################
 # Set the mode here. Please change to 'autonomous' before submission
 # mode = 'manual'  # Part 1.1: manual mode
-mode = 'planner'
-# mode = 'autonomous'
+# mode = 'planner'
+mode = 'autonomous'
 
 
 ###################
@@ -297,16 +297,21 @@ if mode == 'planner':
     # Part 2.4  convert back to world coordinates
     # (abs(int(start_w[0]*30)), abs(int(start_w[1]*30)))
 
-    # extract x and y coordinates from the tuples
-    x_coords = [point[0] for point in path]
-    y_coords = [point[1] for point in path]
+    # # extract x and y coordinates from the tuples
+    # x_coords = [point[0] for point in path]
+    # y_coords = [point[1] for point in path]
 
     # create a scatter plot of the points
     # fig, ax = plt.subplots()
     ax.imshow(config_space, cmap='binary')
-    ax.scatter(x_coords, y_coords)
-    # show the plot
-    plt.show()
+
+    # plot each tuple in the list
+    # for d in path:
+    #     x, y = d
+    #     ax.plot(x, y, 'o')    # show the plot
+    # plt.show()
+
+    # np.save("config_space_path", config_space)
 
     path_w = [(x/30, y/30) for x, y in path]
     np.save("path.npy", path_w)
@@ -331,10 +336,30 @@ waypoints = []
 
 if mode == 'autonomous':
     # Part 3.1: Load path from disk and visualize it
-    waypoints = []  # Replace with code to load your path
+    # load path from disk
+    path = np.load('path.npy')
+    visual_map = [(x*30, y*30) for x, y in path]
+
+    # load config file
+    config_space = np.load('./config_space.npy')
+
+    # Create a figure
+    fig, ax = plt.subplots()
+    # Plot the configuration space
+    ax.imshow(config_space, cmap='binary')
+    # plot each tuple in the list
+    for d in visual_map:
+        x, y = d
+        ax.plot(x, y, 'o')    # show the plot
+    # plt.show()
+    np.save("config_space_path.npy", config_space)
+
+    # Replace with code to load your path
+    waypoints = [(-z, -x) for x, z in path]
+    # print(waypoints)
+
 
 state = 0  # use this to iterate through your path
-
 
 while robot.step(timestep) != -1 and mode != 'planner':
 
@@ -514,20 +539,81 @@ while robot.step(timestep) != -1 and mode != 'planner':
             vR *= 0.75
     else:  # not manual mode
         # Part 3.2: Feedback controller
+        goal_x = waypoints[state][0]
+        goal_y = waypoints[state][1]
+
         # STEP 1: Calculate the error
-        rho = 0
-        alpha = 0
+        rho = math.sqrt((pose_x - goal_x)**2 + (pose_y - goal_y)**2)
+        alpha = math.atan2((goal_y-pose_y), (goal_x-pose_x))-pose_theta
+        nu = alpha - pose_theta
 
         # STEP 2: Controller
-        dX = 0
-        dTheta = 0
+        # Clamp error values
+        if alpha < -3.1415:
+            alpha += 6.283
+        if nu < -3.1415:
+            nu += 6.283
+
+        # need conditional logic to determine controller gains
+        # Prioritize Bearing error
+        p1, p2, p3 = 0, 0, 0
+        if (abs(alpha) > 0.3):
+            p1 = 1  # small gains for rho
+            p2 = 10  # higher gains for alpha
+            p3 = 0  # no update for nu
+        else:
+            # Prioratize position error
+            if (abs(rho) > 0.5):
+                p1 = 10  # higher gains for rho i.e. position
+                p2 = 1
+                p3 = 0
+            else:
+                # Prioritize heading error
+                p1 = 1
+                p2 = 1
+                p3 = 20
+
+        radius = (MAX_SPEED_MS/MAX_SPEED)
+        d = AXLE_LENGTH
+
+        xR_dot = p1 * rho
+        thetaR_dot = p2 * alpha + p3 * nu
 
         # STEP 3: Compute wheelspeeds
-        vL = 0
-        vR = 0
+        vL = xR_dot - (thetaR_dot/2)*d  # Left wheel velocity in rad/s
+        vR = xR_dot + (thetaR_dot/2)*d
 
         # Normalize wheelspeed
         # (Keep the wheel speeds a bit less than the actual platform MAX_SPEED to minimize jerk)
+
+        # 2.7 clamp the velocities if they exceed MAX_SPEED
+        if vL > MAX_SPEED:
+            vL = MAX_SPEED
+        elif abs(vL) > MAX_SPEED:
+            vL = - MAX_SPEED
+
+        if vR > MAX_SPEED:
+            vR = MAX_SPEED
+        elif abs(vR) > MAX_SPEED:
+            vR = - MAX_SPEED
+
+        # STEP 2.8 Create stopping criteria
+        if abs(rho) <= 0.5 and alpha <= abs(0.5):
+            state += 1
+            # print("Curr:", waypoints[state][0], waypoints[state][1])
+            # print("Next:", waypoints[state+1][0], waypoints[state+1][1])
+            if i == 7:
+                vL = 0
+                vR = 0
+                timestep = -1
+
+        # Debugging Code
+        print(f'Waiptoint: {state=}')
+        print(f'Pose: {pose_x=} {pose_y=} {pose_theta=}')
+        print(f'Goal: {goal_x=} {goal_y=} {alpha=}')
+        print(f'Error values: {rho=} {alpha=} {nu=}')
+        print(f'Speeds: {vR=} {vL=}')
+        print("---------------------------------")
 
     # Odometry code. Don't change vL or vR speeds after this line.
     # We are using GPS and compass for this lab to get a better pose but this is how you'll do the odometry
