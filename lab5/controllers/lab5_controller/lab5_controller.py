@@ -5,6 +5,9 @@ import numpy as np
 from matplotlib import pyplot as plt
 # Uncomment if you want to use something else for finding the configuration space
 from scipy.signal import convolve2d
+import heapq
+# from queue import PriorityQueue
+
 
 MAX_SPEED = 7.0  # [rad/s]
 MAX_SPEED_MS = 0.633  # [m/s]
@@ -120,7 +123,6 @@ if mode == 'planner':
         :param end: A tuple of indices representing the end cell in the map
         :return: A list of tuples as a path from the given start to the given end in the given maze
         '''
-        # print("entered path_planning")
 
         # check if the start and end nodes are valid
         # if the start or end nodes are obstacles
@@ -137,23 +139,16 @@ if mode == 'planner':
             print("end node is out of bounds")
             return []
 
-        # keep track of the visted nodes
-        visited = set()
         # init dictionaries to keep track of distance from start and predecessor
         distances = {}
         parent = {}
-        free_count = 0
 
         # Initialize distances
         for i in range(map.shape[0]):
             for j in range(map.shape[1]):
                 # free space
                 if map[i, j] == 0:
-                    # keep track of how many free spaces in map
-                    free_count += 1
-                    # init distance for node
                     distances[(i, j)] = float('inf')
-                    # init parent for node
                     parent[(i, j)] = None
                 # obstacle, do not include in map
                 else:
@@ -163,51 +158,49 @@ if mode == 'planner':
         # init the first node
         distances[start] = 0
         parent[start] = None
+        # initialize the priority queue with the start node
+        pq = []
+        heapq.heappush(pq, (0, start))
 
-        print("finished init, entering while loop")
+        # keep track of the visited nodes
+        visited = set()
 
-        while len(visited) < free_count:
-            # print("iterating through the while loop")
-            # Find the next node with smallest distance
-            curr = None
+        while pq:
+            # Get the node with the smallest distance from the start
+            curr_dist, curr_node = heapq.heappop(pq)
 
-            for i in range(map.shape[0]):
-                for j in range(map.shape[1]):
-                    node = (i, j)
-                    # and (curr is None or distances[node] < distances[curr])
-                    if (node not in visited) and (distances[node] != -1):
-                        curr = node
-
-            # print("passing curr node finding...")
-
-            # check if all nodes have been visited or smallest path is still inf
-            # or distances[curr] == float('inf')
-            if curr is None:
-                return []
+            # Check if we have already visited the node
+            if curr_node in visited:
+                continue
 
             # mark the curr node as visited
-            visited.add(curr)
+            visited.add(curr_node)
+
+            # Check if we have reached the end node
+            if curr_node == end:
+                break
 
             # Update distances to adjacent nodes
-            # left, right, down, up
-            for neighbor in [(curr[0]-1, curr[1]), (curr[0]+1, curr[1]), (curr[0], curr[1]-1), (curr[0], curr[1]+1)]:
+            for neighbor in [(curr_node[0]-1, curr_node[1]), (curr_node[0]+1, curr_node[1]), (curr_node[0], curr_node[1]-1), (curr_node[0], curr_node[1]+1)]:
                 # check that the neighbor is within the map boundaries
                 if neighbor[0] < 0 or neighbor[0] >= map.shape[0] or neighbor[1] < 0 or neighbor[1] >= map.shape[1]:
                     continue
                 # check that the neighbor is not an obstacle
                 if map[neighbor[0], neighbor[1]] == 1:
                     continue
-                # the distance for the neighbor
-                distance = distances[curr] + 1
-                # compare the new distance from the neighbor, to its current one
-                if distance < distances[neighbor]:
-                    # if new distance smaller, update
-                    distances[neighbor] = distance
-                    parent[neighbor] = curr
 
-        print("passing update distance while loop...")
+                # calculate new distance to neighbor
+                new_dist = curr_dist + 1
+                # if the new distance is shorter, update distance and add to priority queue
+                if new_dist < distances[neighbor]:
+                    distances[neighbor] = new_dist
+                    parent[neighbor] = curr_node
+                    # pq.put((new_dist, neighbor))
+                    heapq.heappush(pq, (new_dist, neighbor))
+
         # If we didn't reach the end node, there is no path
         if end not in visited:
+            print("End node not found")
             return []
 
         # Trace back the path from end to start
@@ -219,13 +212,12 @@ if mode == 'planner':
             # add its parent to the path
             dij_path.append(parent[last_node])
 
-        print("passing path finding while loop...")
         # Reverse the path and return it
         dij_path.reverse()
+        print("-> dij_path: ", dij_path)
         # make the path a list of tuples
         path_tuples = [(node[1], node[0]) for node in dij_path]
         # return a list of tuples
-        print("returning path...")
         return path_tuples
 
     # Part 2.1: Load map (map.npy) from disk and visualize it
@@ -274,16 +266,16 @@ if mode == 'planner':
     #         if configuration_space[i][j] == 0 and j > 100:
     #             print("map[%i][%i]: %s" % (i, j, configuration_space[i][j]))
 
+    
+
     path = path_planner(configuration_space, start, end)
-    print("-> excited path_planning...")
 
     # check if valid
     if (path == []):
         print("-> Shit failed...")
     else:
         print("-> Printing the path from algo: ")
-        for i in range(len(path)):
-            print(path[i])
+        print(path)
 
     # convert back to world coordinates
     # (abs(int(start_w[0]*30)), abs(int(start_w[1]*30)))
