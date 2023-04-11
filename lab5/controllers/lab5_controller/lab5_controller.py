@@ -107,7 +107,7 @@ if mode == 'planner':
     start_w = (-7.866666,  -4.666667)  # (Pose_X, Pose_Y) in meters
 
     # corridor outside the bathroom: wx: -6.835060 wy: -7.936140
-    end_w = (-10.3, -7)  # (Pose_X, Pose_Y) in meters
+    end_w = (-7, -10.3,)  # (Pose_X, Pose_Y) in meters
 
     # Convert the start_w and end_w from the webots coordinate frame into the map frame
     # (x, y) in 360x360 map
@@ -214,7 +214,7 @@ if mode == 'planner':
 
         # Reverse the path and return it
         dij_path.reverse()
-        print("-> dij_path: ", dij_path)
+        # print("-> dij_path: ", dij_path)
         # make the path a list of tuples
         path_tuples = [(node[1], node[0]) for node in dij_path]
         # return a list of tuples
@@ -258,7 +258,6 @@ if mode == 'planner':
 
     # Part 2.3 continuation: Call path_planner
 
-    print("-> Start %s and end %s nodes: " % (start, end))
     # start: 235, 140
     # END: map[309][210]: 0.0
     # for i in range(290, 310):
@@ -266,27 +265,52 @@ if mode == 'planner':
     #         if configuration_space[i][j] == 0 and j > 100:
     #             print("map[%i][%i]: %s" % (i, j, configuration_space[i][j]))
 
-    
+    # debug with a smaller array
+    # test_arr = [[0, 0, 0, 0, 0, 0, 0, 0],
+    #             [0, 1, 1, 0, 0, 1, 1, 0],
+    #             [0, 1, 1, 0, 1, 1, 1, 0],
+    #             [0, 1, 1, 0, 0, 0, 0, 0],
+    #             [0, 0, 0, 0, 0, 0, 0, 0],
+    #             [0, 0, 0, 0, 1, 1, 0, 1],
+    #             [0, 0, 0, 0, 1, 1, 1, 1],
+    #             [0, 0, 0, 0, 1, 1, 1, 1]]
 
+    # start = (0, 2)
+    # end = (5, 6)
+    # test_arr = np.array(test_arr)
+
+    # end = (225, 181)
+    # end = (181, 225)
+
+    # print("-> Start %s and end %s nodes: " % (start, end))
+
+    # path = path_planner(test_arr, start, end)
     path = path_planner(configuration_space, start, end)
 
     # check if valid
     if (path == []):
-        print("-> Shit failed...")
-    else:
-        print("-> Printing the path from algo: ")
-        print(path)
+        print("-> Invalid path...")
+    # else:
+    #     print("-> Printing the path from algo: ")
+    #     print(path)
 
-    # convert back to world coordinates
+    # Part 2.4  convert back to world coordinates
     # (abs(int(start_w[0]*30)), abs(int(start_w[1]*30)))
-    path_w = []
-    for node in path:
-        x = (abs(int(node[0]/30)))
-        y = (abs(int(node[1]/30)))
-        path_w.append(node)
 
-    print("-> Print world path: ")
-    print(path_w)
+    # extract x and y coordinates from the tuples
+    x_coords = [point[0] for point in path]
+    y_coords = [point[1] for point in path]
+
+    # create a scatter plot of the points
+    # fig, ax = plt.subplots()
+    ax.imshow(config_space, cmap='binary')
+    ax.scatter(x_coords, y_coords)
+    # show the plot
+    plt.show()
+
+    path_w = [(x/30, y/30) for x, y in path]
+    np.save("path.npy", path_w)
+    print("Path Saved succesfully")
 
 
 ######################
