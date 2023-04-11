@@ -103,8 +103,8 @@ if mode == 'planner':
     # Part 2.3: Provide start and end in world coordinate frame and convert it to map's frame
     # use the odometry from part 1?
     # wx: -9.711103 wy: -4.925535
-    # start_w = (-6.839398,  -6.034829)  # (Pose_X, Pose_Y) in meters
-    start_w = (-7.866666,  -4.666667)  # (Pose_X, Pose_Y) in meters
+    # start_w = (-7.866666,  -4.666667)  # (Pose_X, Pose_Y) in meters
+    start_w = (-8.333333,  -4.666667)  # (Pose_X, Pose_Y) in meters
 
     # corridor outside the bathroom: wx: -6.835060 wy: -7.936140
     end_w = (-7, -10.3,)  # (Pose_X, Pose_Y) in meters
@@ -351,7 +351,7 @@ if mode == 'autonomous':
     for d in visual_map:
         x, y = d
         ax.plot(x, y, 'o')    # show the plot
-    # plt.show()
+    plt.show()
     np.save("config_space_path.npy", config_space)
 
     # Replace with code to load your path
@@ -587,15 +587,15 @@ while robot.step(timestep) != -1 and mode != 'planner':
         # (Keep the wheel speeds a bit less than the actual platform MAX_SPEED to minimize jerk)
 
         # 2.7 clamp the velocities if they exceed MAX_SPEED
-        if vL > MAX_SPEED:
-            vL = MAX_SPEED
-        elif abs(vL) > MAX_SPEED:
-            vL = - MAX_SPEED
+        if vL >= MAX_SPEED:
+            vL = 0.5 * MAX_SPEED
+        elif abs(vL) >= MAX_SPEED:
+            vL = - 0.5 * MAX_SPEED
 
-        if vR > MAX_SPEED:
-            vR = MAX_SPEED
-        elif abs(vR) > MAX_SPEED:
-            vR = - MAX_SPEED
+        if vR >= MAX_SPEED:
+            vR = 0.5 * MAX_SPEED
+        elif abs(vR) >= MAX_SPEED:
+            vR = - 0.5 * MAX_SPEED
 
         # STEP 2.8 Create stopping criteria
         if abs(rho) <= 0.5 and alpha <= abs(0.5):
