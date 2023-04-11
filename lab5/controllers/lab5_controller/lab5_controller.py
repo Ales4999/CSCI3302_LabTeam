@@ -341,7 +341,8 @@ if mode == 'autonomous':
     visual_map = [(x*30, y*30) for x, y in path]
 
     # load config file
-    config_space = np.load('./config_space.npy')
+    # config_space = np.load('./config_space.npy')
+    config_space = np.load('./map.npy')
 
     # Create a figure
     fig, ax = plt.subplots()
@@ -351,8 +352,8 @@ if mode == 'autonomous':
     for d in visual_map:
         x, y = d
         ax.plot(x, y, 'o')    # show the plot
-    plt.show()
-    np.save("config_space_path.npy", config_space)
+    # plt.show()
+    np.save("map_path.npy", config_space)
 
     # Replace with code to load your path
     waypoints = [(-z, -x) for x, z in path]
@@ -608,12 +609,12 @@ while robot.step(timestep) != -1 and mode != 'planner':
                 timestep = -1
 
         # Debugging Code
-        print(f'Waiptoint: {state=}')
-        print(f'Pose: {pose_x=} {pose_y=} {pose_theta=}')
-        print(f'Goal: {goal_x=} {goal_y=} {alpha=}')
-        print(f'Error values: {rho=} {alpha=} {nu=}')
-        print(f'Speeds: {vR=} {vL=}')
-        print("---------------------------------")
+        # print(f'Waiptoint: {state=}')
+        # print(f'Pose: {pose_x=} {pose_y=} {pose_theta=}')
+        # print(f'Goal: {goal_x=} {goal_y=} {alpha=}')
+        # print(f'Error values: {rho=} {alpha=} {nu=}')
+        # print(f'Speeds: {vR=} {vL=}')
+        # print("---------------------------------")
 
     # Odometry code. Don't change vL or vR speeds after this line.
     # We are using GPS and compass for this lab to get a better pose but this is how you'll do the odometry
