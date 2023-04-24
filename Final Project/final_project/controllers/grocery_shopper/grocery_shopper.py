@@ -89,6 +89,11 @@ mode = 'manual'
 keyboard = robot.getKeyboard()
 keyboard.enable(timestep)
 
+map = np.zeros(shape=[360, 360])
+# map = np.zeros(shape=[372, 372])
+
+waypoints = []
+
 
 # ------------------------------------------------------------------
 # Helper Functions
@@ -98,6 +103,88 @@ gripper_status="closed"
 
 # Main Loop
 while robot.step(timestep) != -1:
+
+    # Ground truth pose
+    pose_x = gps.getValues()[0]
+    pose_y = gps.getValues()[1]
+
+    n = compass.getValues()
+    rad = -((math.atan2(n[0], n[2]))-1.5708)
+    pose_theta = rad
+
+    lidar_sensor_readings = lidar.getRangeImage()
+    lidar_sensor_readings = lidar_sensor_readings[83:len(
+        lidar_sensor_readings)-83]
+
+    for i, rho in enumerate(lidar_sensor_readings):
+        alpha = lidar_offsets[i]
+
+        if rho > LIDAR_SENSOR_MAX_RANGE:
+            continue
+
+        # The Webots coordinate system doesn't match the robot-centric axes we're used to
+        rx = math.cos(alpha)*rho
+        ry = -math.sin(alpha)*rho
+
+        t = pose_theta + np.pi/2.
+
+        # Convert detection from robot coordinates into world coordinates
+        wx = math.cos(t)*rx - math.sin(t)*ry + pose_x
+        wy = math.sin(t)*rx + math.cos(t)*ry + pose_y
+
+        ################ ^ [End] Do not modify ^ ##################
+
+        # print("Rho: %f Alpha: %f rx: %f ry: %f wx: %f wy: %f, x: %f, y: %f" % (rho,alpha,rx,ry,wx,wy,x,y))
+
+        if wx <= -12:
+            wx = -11.999
+        if wy <= -12:
+            wy = -11.999
+        if rho < LIDAR_SENSOR_MAX_RANGE:
+
+            # ---- Part 1.3: visualize map gray values. ----
+            x = abs(int(wx*30))
+            y = abs(int(wy*30))
+
+            # if x >= 360:
+            # continue
+            # if y >= 360 :
+            # continue
+
+            # scale = 300
+            # display.setColor(0xFF0000)  # red
+            # display_x = round(pose_x * scale)
+            # display_y = round(pose_y * scale)
+
+            increment_value = 5e-3
+
+            # need to bound increment value?
+            # or index?
+            map[x, y] += increment_value
+
+            # check what is getting stored in the map
+            # print(map[x][y])
+
+            # make sure the value does not exceed 1
+            # map = np.clip(map, None, 1)  # Keep values within [0,1]
+            # You will eventually REPLACE the following lines with a more robust version of the map
+            # with a grayscale drawing containing more levels than just 0 and 1.
+
+            # draw map on diplsay
+            # convert the gray scale
+            # set g to a vallue depending on our map
+            # g_map = min( map[x][y], 1.0)
+            g = min(map[x][y], 1.0)
+
+            color = (g*256**2+g*256+g)*255
+
+            display.setColor(int(color))
+            display.drawPixel(x, y)
+
+
+    # draw the robots line
+    display.setColor(int(0xFF0000))
+    display.drawPixel(abs(int(pose_x*30)), abs(int(pose_y*30)))
     
     if mode == 'manual':
         key = keyboard.getKey()
