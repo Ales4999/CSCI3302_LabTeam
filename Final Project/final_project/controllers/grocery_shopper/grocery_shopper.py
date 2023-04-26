@@ -119,7 +119,6 @@ class Node:
         self.y = y
         self.parent = None
 
-
 class RRT:
     def __init__(self, start, goal, obstacle_map, waypoints):
         self.start = Node(start[0], start[1])
