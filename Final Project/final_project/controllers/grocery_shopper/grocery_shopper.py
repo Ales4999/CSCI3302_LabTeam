@@ -1,6 +1,11 @@
 """grocery controller."""
 
 # Nov 2, 2022
+# Group: WALL-E's
+# Team Members:
+# Mark Abbott
+# Miles Sanders
+# Alberto Espinosa
 
 from controller import Robot, Keyboard
 import math
