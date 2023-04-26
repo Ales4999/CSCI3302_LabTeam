@@ -1090,7 +1090,7 @@ TiagoSteel {
       }
     }
     Display {
-      width 360
+      width 192
       height 360
     }
   ]
