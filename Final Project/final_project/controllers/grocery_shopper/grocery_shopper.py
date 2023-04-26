@@ -300,7 +300,6 @@ while robot.step(timestep) != -1 and mode != 'planner':
     # Ground truth pose
     pose_x = 8 - gps.getValues()[1]
     pose_y = 15 - gps.getValues()[0]
-    print(pose_x, pose_y)
 
     n = compass.getValues()
     rad = -((math.atan2(n[0], n[2]))-1.5708)
@@ -324,15 +323,16 @@ while robot.step(timestep) != -1 and mode != 'planner':
         # Convert detection from robot coordinates into world coordinates
         wx = math.cos(t)*rx - math.sin(t)*ry + pose_x
         wy = math.sin(t)*rx + math.cos(t)*ry + pose_y
+        print(wx, wy)
 
         ################ ^ [End] Do not modify ^ ##################
 
         # print("Rho: %f Alpha: %f rx: %f ry: %f wx: %f wy: %f, x: %f, y: %f" % (rho,alpha,rx,ry,wx,wy,x,y))
-
-        if wx <= -12:
-            wx = -11.999
-        if wy <= -12:
-            wy = -11.999
+        #print(wx,wy)
+        if wx >= 16:
+            wx = 15.999
+        if wy >= 30:
+            wy = 29.999
         if rho < LIDAR_SENSOR_MAX_RANGE:
 
             # ---- Part 1.3: visualize map gray values. ----
@@ -377,7 +377,7 @@ while robot.step(timestep) != -1 and mode != 'planner':
 
     # draw the robots line
     display.setColor(int(0xFF0000))
-    display.drawPixel(abs(int(pose_x*12)),abs(int(pose_y*12)))
+    #display.drawPixel(abs(int(pose_x*12)),abs(int(pose_y*12)))
 
     if mode == 'manual':
         key = keyboard.getKey()
