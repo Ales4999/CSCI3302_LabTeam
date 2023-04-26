@@ -101,7 +101,7 @@ mode = 'manual'
 # mode = 'planner'
 # mode = 'autonomous'
 
-map = np.zeros(shape=[360, 360])
+map = np.zeros(shape=[192, 360])
 # map = np.zeros(shape=[372, 372])
 
 waypoints = []
@@ -298,16 +298,16 @@ while robot.step(timestep) != -1 and mode != 'planner':
     ###################
 
     # Ground truth pose
-    pose_x = gps.getValues()[0]
-    pose_y = gps.getValues()[1]
+    pose_x = 8 - gps.getValues()[1]
+    pose_y = 15 - gps.getValues()[0]
+    print(pose_x, pose_y)
 
     n = compass.getValues()
     rad = -((math.atan2(n[0], n[2]))-1.5708)
     pose_theta = rad
 
     lidar_sensor_readings = lidar.getRangeImage()
-    lidar_sensor_readings = lidar_sensor_readings[83:len(
-        lidar_sensor_readings)-83]
+    lidar_sensor_readings = lidar_sensor_readings[83:len(lidar_sensor_readings)-83]
 
     for i, rho in enumerate(lidar_sensor_readings):
         alpha = lidar_offsets[i]
@@ -336,8 +336,8 @@ while robot.step(timestep) != -1 and mode != 'planner':
         if rho < LIDAR_SENSOR_MAX_RANGE:
 
             # ---- Part 1.3: visualize map gray values. ----
-            x = abs(int(wx*30))
-            y = abs(int(wy*30))
+            x = abs(int(wx*12))
+            y = abs(int(wy*12))
 
             # if x >= 360:
             # continue
@@ -353,6 +353,7 @@ while robot.step(timestep) != -1 and mode != 'planner':
 
             # need to bound increment value?
             # or index?
+            #print(x,y)
             map[x, y] += increment_value
 
             # check what is getting stored in the map
@@ -372,11 +373,11 @@ while robot.step(timestep) != -1 and mode != 'planner':
             color = (g*256**2+g*256+g)*255
 
             display.setColor(int(color))
-            display.drawPixel(x, y)
+            #display.drawPixel(x, y)
 
     # draw the robots line
     display.setColor(int(0xFF0000))
-    display.drawPixel(abs(int(pose_x*30)), abs(int(pose_y*30)))
+    display.drawPixel(abs(int(pose_x*12)),abs(int(pose_y*12)))
 
     if mode == 'manual':
         key = keyboard.getKey()
