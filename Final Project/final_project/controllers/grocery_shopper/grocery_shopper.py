@@ -101,7 +101,7 @@ mode = 'manual'
 # mode = 'planner'
 # mode = 'autonomous'
 
-map = np.zeros(shape=[192, 360])
+map = np.zeros(shape=[360, 192])
 # map = np.zeros(shape=[372, 372])
 
 waypoints = []
@@ -298,11 +298,11 @@ while robot.step(timestep) != -1 and mode != 'planner':
     ###################
 
     # Ground truth pose
-    pose_x = 8 - gps.getValues()[1]
-    pose_y = 15 - gps.getValues()[0]
+    pose_x = 15 - gps.getValues()[0]
+    pose_y = 8 - gps.getValues()[1]
 
     n = compass.getValues()
-    rad = -((math.atan2(n[0], n[2]))-1.5708)
+    rad = -((math.atan2(n[1], n[0]))-1.5708)
     pose_theta = rad
 
     lidar_sensor_readings = lidar.getRangeImage()
@@ -318,21 +318,21 @@ while robot.step(timestep) != -1 and mode != 'planner':
         rx = math.cos(alpha)*rho
         ry = -math.sin(alpha)*rho
 
-        t = pose_theta + np.pi/2.
+        t = pose_theta + np.pi
 
         # Convert detection from robot coordinates into world coordinates
         wx = math.cos(t)*rx - math.sin(t)*ry + pose_x
         wy = math.sin(t)*rx + math.cos(t)*ry + pose_y
-        print(wx, wy)
+        #print(wx, wy)
 
         ################ ^ [End] Do not modify ^ ##################
 
         # print("Rho: %f Alpha: %f rx: %f ry: %f wx: %f wy: %f, x: %f, y: %f" % (rho,alpha,rx,ry,wx,wy,x,y))
         #print(wx,wy)
-        if wx >= 16:
-            wx = 15.999
-        if wy >= 30:
-            wy = 29.999
+        if wx >= 30:
+            wx = 29.999
+        if wy >= 16:
+            wy = 15.999
         if rho < LIDAR_SENSOR_MAX_RANGE:
 
             # ---- Part 1.3: visualize map gray values. ----
@@ -373,11 +373,11 @@ while robot.step(timestep) != -1 and mode != 'planner':
             color = (g*256**2+g*256+g)*255
 
             display.setColor(int(color))
-            #display.drawPixel(x, y)
+            display.drawPixel(y, x)
 
     # draw the robots line
     display.setColor(int(0xFF0000))
-    #display.drawPixel(abs(int(pose_x*12)),abs(int(pose_y*12)))
+    display.drawPixel(abs(int(pose_y*12)),abs(int(pose_x*12)))
 
     if mode == 'manual':
         key = keyboard.getKey()
@@ -421,8 +421,8 @@ while robot.step(timestep) != -1 and mode != 'planner':
             vL *= 0.75
             vR *= 0.75
 
-    robot_parts["wheel_left_joint"].setVelocity(vL)
-    robot_parts["wheel_right_joint"].setVelocity(vR)
+    robot_parts["wheel_left_joint"].setVelocity(0.5*vL)
+    robot_parts["wheel_right_joint"].setVelocity(0.5*vR)
 
     if (gripper_status == "open"):
         # Close gripper, note that this takes multiple time steps...
