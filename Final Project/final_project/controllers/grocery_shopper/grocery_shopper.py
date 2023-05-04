@@ -97,9 +97,10 @@ lidar_offsets = lidar_offsets[83:len(lidar_offsets)-83]
 
 map = None
 
-# mode = 'manual'
-mode = 'planner'
-# mode = 'autonomous'
+#mode = 'manual'
+mode = 'autonomous'
+# mode = 'SLAM'
+# mode = 'planner'
 
 map = np.zeros(shape=[360, 192])
 # map = np.zeros(shape=[372, 372])
@@ -107,6 +108,16 @@ map = np.zeros(shape=[360, 192])
 # waypoints = [(11.20, 1.55), (18.26, 5.05),
 #              (17.74, 7.00), (13.97, 7.24), (12.51, 5.38), (11.28, 5.29),
 #              (9.34, 10.73), (12.34, 10.73), (17.28, 13.50)]
+wall_counter = 0
+beginning = 0
+stage_counter = 0
+
+while robot.step(timestep) != -1:
+    initial_heading = (compass.getValues()[0]*90)*(math.pi/180)
+    if not math.isnan(initial_heading):
+        break
+
+waypoints = []
 
 
 # ------------------------------------------------------------------
@@ -466,6 +477,99 @@ while robot.step(timestep) != -1 and mode != 'planner':
         else:  # slow down
             vL *= 0.75
             vR *= 0.75
+            
+    if mode == 'autonomous':
+        rotation_time = 9.63  # Adjust this value to get a 90 degree turn
+        desired_rotation = 1.57
+
+        if (beginning == 0):
+            vL = 0
+            vR = 0
+            beginning = 1
+            
+        elif (wall_counter%1 == 0):
+            current_heading = (compass.getValues()[0]*90)*(math.pi/180)
+            if(wall_counter == 0 or wall_counter == 1):
+                rotation = current_heading - initial_heading
+            elif(wall_counter == 2 or wall_counter == 4 or wall_counter == 8):
+                rotation = current_heading
+            elif(wall_counter == 3 or wall_counter == 7):
+                rotation = current_heading - initial_heading + 0.096
+            elif(wall_counter == 5 or wall_counter == 9):
+                rotation = current_heading - initial_heading + 0.045
+            elif(wall_counter == 6):
+                rotation = current_heading
+            elif(wall_counter == 7):
+                rotation = current_heading - (initial_heading + 0.0162)
+            
+            vL = 0.2*MAX_SPEED
+            vR = -0.2*MAX_SPEED
+
+            if abs(rotation) >= desired_rotation:
+                wall_counter += 0.5
+
+                robot_parts["wheel_left_joint"].setVelocity(-0.2*MAX_SPEED)
+                robot_parts["wheel_right_joint"].setVelocity(0.2*MAX_SPEED)
+                robot.step(864)
+                
+                robot_parts["wheel_left_joint"].setVelocity(0)
+                robot_parts["wheel_right_joint"].setVelocity(0)
+                robot.step(1000)
+                
+                initial_x = gps.getValues()[0]
+                initial_y = gps.getValues()[1]
+
+        else:
+            if(lidar_sensor_readings[250] > 2.1):
+                vL = MAX_SPEED
+                vR = MAX_SPEED
+
+                if (stage_counter == 5 or stage_counter == 9):
+                    current_x = gps.getValues()[0]
+                    delta_x = math.copysign(1, current_x) * abs(current_x - initial_x)
+                    if(abs(delta_x) >= 18.3):
+                        wall_counter += 0.5
+                        stage_counter += 1
+                        initial_heading = (compass.getValues()[0]*90)*(math.pi/180)
+                        if(stage_counter == 10):
+                            threshold_value = 0.5
+                            thresholded_map = np.multiply(map > threshold_value, 1)
+                            map_name = 'map.npy'
+
+                            # save the thresholded map data to a file
+                            map_trimmed = thresholded_map[0:800, 0:360]
+                            np.save(map_name, map_trimmed)
+                            print("Map file saved as %s" % (map_name))
+                            robot_parts["wheel_left_joint"].setVelocity(0)
+                            robot_parts["wheel_right_joint"].setVelocity(0)
+                            break
+
+                elif (stage_counter == 6):
+                    if(lidar_sensor_readings[250] <= 5.45):
+                        wall_counter += 0.5
+                        stage_counter += 1
+                        initial_heading = (compass.getValues()[0]*90)*(math.pi/180)
+                
+                elif (stage_counter == 8):
+                    current_y = gps.getValues()[1]
+                    delta_y = math.copysign(1, current_y) * abs(current_y - initial_y)
+                    if(abs(delta_y) >= 2.3):
+                        wall_counter += 0.5
+                        stage_counter += 1
+                        initial_heading = (compass.getValues()[0]*90)*(math.pi/180)
+            else:
+                wall_counter += 0.5
+
+                robot_parts["wheel_left_joint"].setVelocity(0)
+                robot_parts["wheel_right_joint"].setVelocity(0)
+                robot.step(1000)
+
+                initial_heading = (compass.getValues()[0]*90)*(math.pi/180)
+
+                stage_counter += 1
+            
+
+             
 
     # Actuator commands
     robot_parts["wheel_left_joint"].setVelocity(0.5*vL)
@@ -484,7 +588,7 @@ while robot.step(timestep) != -1 and mode != 'planner':
         if left_gripper_enc.getValue() >= 0.044:
             gripper_status = "open"
 
-    print("X: %f Y: %f Theta: %f" % (pose_x, pose_y, pose_theta))
+    # print("X: %f Y: %f Theta: %f" % (pose_x, pose_y, pose_theta))
 
 
 while robot.step(timestep) != -1:
