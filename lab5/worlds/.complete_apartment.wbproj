@@ -7,7 +7,7 @@ maximizedDockId: -1
 centralWidgetVisible: 1
 projectionMode: PERSPECTIVE
 orthographicViewHeight: 54.7637
-textFiles: 0 "controllers/lab5_controller/lab5_controller.py"
+textFiles: 0 "../../lab5/controllers/lab5_controller/lab5_controller.py"
 globalOptionalRendering: CoordinateSystem
 consoles: Console:All:All
 renderingDevicePerspectives: TIAGo Steel:camera;1;1;0;0
