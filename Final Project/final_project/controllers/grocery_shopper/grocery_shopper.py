@@ -97,14 +97,70 @@ lidar_offsets = lidar_offsets[83:len(lidar_offsets)-83]
 
 map = None
 
-mode = 'manual'
-# mode = 'planner'
+# mode = 'manual'
 # mode = 'autonomous'
+# mode = 'SLAM'
+# mode = 'planner'
+mode = 'path_following'
 
 map = np.zeros(shape=[360, 192])
 # map = np.zeros(shape=[372, 372])
 
-waypoints = []
+# waypoints = [(11.20, 1.55), (18.26, 5.05),
+#              (17.74, 7.00), (13.97, 7.24), (12.51, 5.38), (11.28, 5.29),
+#              (9.34, 10.73), (12.34, 10.73), (17.28, 13.50)]
+wall_counter = 0
+beginning = 0
+stage_counter = 0
+
+while robot.step(timestep) != -1:
+    initial_heading = (compass.getValues()[0]*90)*(math.pi/180)
+    if not math.isnan(initial_heading):
+        break
+
+# Define the waypoints as a list of (x, y) tuples for goal objects
+# waypoints_map = [(abs(int(x*12)), abs(int(y*12))) for x, y in waypoints]
+# waypoints converted into map coordinates already
+# waypoints_map = [(134, 18),  (219, 65), (212, 85), (165, 85),
+#                  (140, 65), (140, 130), (110, 130), (207, 161)]
+waypoints_map = [(134, 18),  (219, 65), (212, 85),
+                 (140, 65), (140, 130), (110, 130), (207, 161)]
+
+waypoint_i = 0  # iterator for waypoints
+
+# ------------------------------------------------------------------
+# Helper Functions
+
+# Euclidean distance between two points
+
+
+def distance(p1, p2):
+    return math.sqrt((p1[0]-p2[0])**2 + (p1[1]-p2[1])**2)
+
+
+# Path smoothing algo
+def smooth_path(path, epsilon):
+    # If the path has only two points, return the path
+    if len(path) <= 2:
+        return path
+    # Find the point farthest from the line segment connecting the first and last points
+    dmax = 0
+    index = 0
+    for i in range(1, len(path)-1):
+        d = distance(path[i], path[0]) + distance(path[i], path[-1])
+        if d > dmax:
+            index = i
+            dmax = d
+
+    # If the farthest point is greater than epsilon away from the line segment, split the path
+    if dmax > epsilon:
+        left = path[:index+1]
+        right = path[index:]
+        simplified_left = smooth_path(left, epsilon)
+        simplified_right = smooth_path(right, epsilon)
+        return simplified_left[:-1] + simplified_right
+    else:
+        return [path[0], path[-1]]
 
 
 # ------------------------------------------------------------------
@@ -113,110 +169,107 @@ waypoints = []
 # Tier 2: A*
 # Tier 3: RRT
 
+
 class Node:
+    # Init a node structure
     def __init__(self, x, y):
+        # Init the x and y coordinates for each point
         self.x = x
         self.y = y
+        # keep track of the parent of each node
         self.parent = None
 
 
 class RRT:
-    def __init__(self, start, goal, obstacle_map, waypoints):
-        self.start = Node(start[0], start[1])
-        self.goal = Node(goal[0], goal[1])
-        self.obstacle_map = obstacle_map
-        self.width = obstacle_map.shape[1]
-        self.height = obstacle_map.shape[0]
-        self.nodes = [self.start]
-        self.waypoints = waypoints
-        self.path = []
-        self.epsilon = 10
-        self.goal_tolerance = 10
+    # class init
+    def __init__(self, start, end, obstacles, k=1500, delta_q=10):
+        self.start = Node(start[0], start[1])  # Start node
+        self.end = Node(end[0], end[1])  # end node
+        self.obstacles = obstacles  # config_map
+        self.k = k  # maximum number of iterations
+        self.delta_q = delta_q  # delta_q_q
+        self.bound_x = obstacles.shape[0]-1
+        self.bound_y = obstacles.shape[1]-1
+        # a list of node_list to create a path from
+        self.node_list = [self.start]
 
-    def plan(self):
-        for waypoint in self.waypoints:
-            for i in range(1000):
-                if random.random() < 0.05:
-                    x, y = self.goal.x, self.goal.y
-                else:
-                    x, y = self.generate_random_point()
-
-                nearest_node = self.get_nearest_node(x, y)
-
-                new_node = self.steer(nearest_node, x, y)
-
-                if self.obstacle_free(nearest_node, new_node):
-                    self.nodes.append(new_node)
-                    new_node.parent = nearest_node
-
-                if self.goal_reached(new_node, self.goal):
-                    self.path = self.get_path(new_node)
-                    break
-
-            if self.path:
-                break
-
-        return self.path
-
-    def generate_random_point(self):
-        x = random.randint(0, self.width-1)
-        y = random.randint(0, self.height-1)
-        return x, y
-
-    def get_nearest_node(self, x, y):
-        distances = [math.sqrt((node.x-x)**2 + (node.y-y)**2)
-                     for node in self.nodes]
-        nearest_index = np.argmin(distances)
-        return self.nodes[nearest_index]
-
-    def steer(self, nearest_node, x, y):
-        dx = x - nearest_node.x
-        dy = y - nearest_node.y
-        theta = math.atan2(dy, dx)
-        new_x = nearest_node.x + self.epsilon * math.cos(theta)
-        new_y = nearest_node.y + self.epsilon * math.sin(theta)
-        return Node(int(new_x), int(new_y))
-
-    def obstacle_free(self, node1, node2):
-        x1, y1, x2, y2 = node1.x, node1.y, node2.x, node2.y
-
-        for i in range(0, 101, 10):
-            x = int(i * x2 + (100-i) * x1) // 100
-            y = int(i * y2 + (100-i) * y1) // 100
-            if self.obstacle_map[y][x] == 1:
-                return False
-
+    def check_node_valid(self, x, y):
+        if self.obstacles[x][y] == 1:  # check if the current point is not an obstacle
+            return False
         return True
 
-    def goal_reached(self, node, goal):
-        return math.sqrt((node.x-goal.x)**2 + (node.y-goal.y)**2) < self.goal_tolerance
+    def distance(self, n1, n2):
+        # lin.alg.norm i.e. distance between 2 points
+        return np.sqrt((n1.x - n2.x)**2 + (n1.y - n2.y)**2)
 
-    def get_path(self, node):
+    def nearest_node(self, curr_node):
+        # iterate through the node_list list and calculate the dostance from curr_node
+        distances = [self.distance(curr_node, node) for node in self.node_list]
+        # get the smallest distance
+        nearest_idx = np.argmin(distances)
+        # return the node in node_list with the smallest distance
+        return self.node_list[nearest_idx]
+
+    def new_node(self):
+        # generate a random x coordinate bounded by the shape
+        x = random.randint(0, self.bound_x)
+        # generate a random y coord. bounded by the map shape
+        y = random.randint(0, self.bound_y)
+        # crate a random node with given coord.
+        new_node = Node(x, y)
+        # get the nearest node in node_list from the new_node
+        nearest_node = self.nearest_node(new_node)
+        # get the distance between the nodes
+        dist = self.distance(new_node, nearest_node)
+        # if the dist is bigger than our threshold update
+        if dist > self.delta_q:
+            # get the distance for the x coord
+            x = int(nearest_node.x + (new_node.x - nearest_node.x)
+                    * self.delta_q / dist)
+            new_node.x = x
+            # get the distance for the y coord
+            y = int(nearest_node.y + (new_node.y - nearest_node.y)
+                    * self.delta_q / dist)
+            new_node.y = y
+        # update the parent node
+        new_node.parent = nearest_node
+        # return the newly created node
+        return new_node
+
+    def find_path(self):
+        # iterate through the number of max iterations k
+        for i in range(self.k):
+            # get a new node
+            new_node = self.new_node()
+            # check that the new path is valid
+            if self.check_node_valid(new_node.x, new_node.y):
+                # if node valid, append to the node_list
+                self.node_list.append(new_node)
+            # check the distance between the new node and the goal/end node
+            if self.distance(new_node, self.end) < self.delta_q:
+                # if dist < delta_q terminane and return path
+                self.end.parent = new_node
+                return self.get_path()
+        return None
+
+    def get_path(self):
+        # init path array
         path = []
-        current = node
-        while current:
-            path.append((current.x, current.y))
-            current = current.parent
+        # start from the end node
+        current_node = self.end
+        # iterathe through the parents of each node in node_list
+        while current_node.parent is not None:
+            # append current node to path
+            path.append((current_node.x, current_node.y))
+            # get the curr_node parent as curr_node
+            current_node = current_node.parent
+        # Append start node with null parent
+        path.append((self.start.x, self.start.y))
+        # reverse the path before returning
         return path[::-1]
 
 
 if mode == 'planner':
-    # Part 2.3: Provide start and end in world coordinate frame and convert it to map's frame
-    start_x = 0
-    start_y = 0
-    start_w = (start_x,  start_y)  # (Pose_X, Pose_Y) in meters
-
-    # End coordinates
-    end_x = 0
-    end_y = 0
-    end_w = (end_x, end_y)  # (Pose_X, Pose_Y) in meters
-
-    # Convert the start_w and end_w from the webots coordinate frame into the map frame
-    # (x, y) in 360x360 map
-    start = (abs(int(start_w[0]*30)), abs(int(start_w[1]*30)))
-    # (x, y) in 360x360 map
-    end = (abs(int(end_w[0]*30)), abs(int(end_w[1]*30)))
-
     # Part 2.1: Load map (map.npy) from disk and visualize it
     map = np.load('./map.npy')
 
@@ -243,60 +296,75 @@ if mode == 'planner':
     fig, ax = plt.subplots()
     # Plot the configuration space
     ax.imshow(config_space, cmap='binary')
+    # ax.imshow(config_space, cmap='binary')
     # Show the plot
     # plt.show()
 
-    # Define the waypoints as a list of (x, y) tuples
-    waypoints = [(50, 50), (100, 100), (150, 150)]
+    # just visit a subset of the end locations for now...
+    visit = [(134, 18), (140, 65), (140, 130), (207, 161)]
 
-    # Create a new RRT planner
-    planner = RRT(start, end, config_space, waypoints)
+    start_m = (256, 96)
+    end = (134, 18)
+    # Create an instance of the RRT class and find a path
+    path = []
 
-    # Plan a path
-    path = planner.plan()
+    while path == []:
+        # iterate until you get a valid path
+        # Create an instance of the RRT class and find a path
+        rrt = RRT(start_m, end, config_space)
+        # get the path
+        path = rrt.find_path()
 
-    # Plot the path and the obstacles
-    plt.imshow(config_space, cmap='gray', origin='lower')
-    plt.plot(start[1], start[0], 'go')
-    plt.plot(end[1], end[0], 'ro')
-    for waypoint in waypoints:
-        plt.plot(waypoint[1], waypoint[0], 'yo')
+    for i in range(len(visit)-1):
+        sub_path = []
+        while sub_path == []:
+            start = (visit[i][0], visit[i][1])
+            end = (visit[i+1][0], visit[i+1][1])
+            rrt = RRT(start, end, config_space)
+            sub_path = rrt.find_path()
+        path.extend(sub_path[:-1])
+
     if path:
+        # print("Path found:", path)
+        epsilon = 3.0
+        path = smooth_path(path, epsilon)
+        # Plot the path and the obstacles
+        plt.imshow(config_space, cmap='binary')
+        # plt.imshow(config_space)
+        plt.plot(start_m[1], start_m[0], 'go')
+        plt.plot(end[1], end[0], 'ro')
+
+        for waypoint in waypoints_map:
+            plt.plot(waypoint[1], waypoint[0], 'ro')
+
         x, y = zip(*path)
         plt.plot(y, x, '-b')
-    plt.show()
+        plt.show()
 
-    # convert back to world coordinates
-    # (abs(int(start_w[0]*30)), abs(int(start_w[1]*30)))
-    path_w = []
-    for node in path:
-        x = (abs(int(node[0]/30)))
-        y = (abs(int(node[1]/30)))
-        # create a node for the world coordinate system
-        node_w = (x, y)
-        # paint the world path
-        ax.scatter(x, y)
-        path_w.append(node_w)
-
-    # save the world coordinate waypoint to disk
-    np.save("path.npy", path_w)
-
-
+        path_w = []
+        for node in path:
+            x = (abs(int(node[0]/12)))
+            y = (abs(int(node[1]/12)))
+            # create a node for the world coordinate system
+            node_w = (x, y)
+            # paint the world path
+            ax.scatter(x, y)
+            path_w.append(node_w)
+        # save the world coordinate waypoint to disk
+        # np.save("path.npy", path_w)
+    else:
+        print("path failed...")
+        print(path)
 # ------------------------------------------------------------------
-# Helper Functions
 
 
 gripper_status = "closed"
 
 # Main Loop
-while robot.step(timestep) != -1 and mode != 'planner':
-
-    ###################
-    #
-    # Mapping
-    #
-    ###################
-
+while robot.step(timestep) != -1 and mode != 'planner' and mode != 'path_following':
+    ### =========== =========== =========== ###
+    ### =========== Mapping =========== ###
+    ### =========== =========== =========== ###
     # Ground truth pose
     pose_x = 15 - gps.getValues()[0]
     pose_y = 8 - gps.getValues()[1]
@@ -306,79 +374,51 @@ while robot.step(timestep) != -1 and mode != 'planner':
     pose_theta = rad
 
     lidar_sensor_readings = lidar.getRangeImage()
-    lidar_sensor_readings = lidar_sensor_readings[83:len(lidar_sensor_readings)-83]
+    lidar_sensor_readings = lidar_sensor_readings[83:len(
+        lidar_sensor_readings)-83]
 
     for i, rho in enumerate(lidar_sensor_readings):
         alpha = lidar_offsets[i]
-
+        # Threshold for lidar sensor
         if rho > LIDAR_SENSOR_MAX_RANGE:
             continue
-
         # The Webots coordinate system doesn't match the robot-centric axes we're used to
         rx = math.cos(alpha)*rho
         ry = -math.sin(alpha)*rho
-
+        # given t value
         t = pose_theta + np.pi
-
         # Convert detection from robot coordinates into world coordinates
         wx = math.cos(t)*rx - math.sin(t)*ry + pose_x
         wy = math.sin(t)*rx + math.cos(t)*ry + pose_y
-        #print(wx, wy)
-
-        ################ ^ [End] Do not modify ^ ##################
-
         # print("Rho: %f Alpha: %f rx: %f ry: %f wx: %f wy: %f, x: %f, y: %f" % (rho,alpha,rx,ry,wx,wy,x,y))
-        #print(wx,wy)
+        # print(wx,wy)
         if wx >= 30:
             wx = 29.999
         if wy >= 16:
             wy = 15.999
         if rho < LIDAR_SENSOR_MAX_RANGE:
-
             # ---- Part 1.3: visualize map gray values. ----
+            # Get world coordinates
             x = abs(int(wx*12))
             y = abs(int(wy*12))
-
-            # if x >= 360:
-            # continue
-            # if y >= 360 :
-            # continue
-
-            # scale = 300
-            # display.setColor(0xFF0000)  # red
-            # display_x = round(pose_x * scale)
-            # display_y = round(pose_y * scale)
-
+            # Get an increment value
             increment_value = 5e-3
-
-            # need to bound increment value?
-            # or index?
-            #print(x,y)
+            # Get a map reading depending on the sensor reading
             map[x, y] += increment_value
-
-            # check what is getting stored in the map
-            # print(map[x][y])
-
-            # make sure the value does not exceed 1
-            # map = np.clip(map, None, 1)  # Keep values within [0,1]
-            # You will eventually REPLACE the following lines with a more robust version of the map
-            # with a grayscale drawing containing more levels than just 0 and 1.
-
-            # draw map on diplsay
-            # convert the gray scale
+            # draw map on diplsay convert the gray scale
             # set g to a vallue depending on our map
-            # g_map = min( map[x][y], 1.0)
             g = min(map[x][y], 1.0)
-
+            # gray scale
             color = (g*256**2+g*256+g)*255
-
+            # display color
             display.setColor(int(color))
             display.drawPixel(y, x)
-
     # draw the robots line
     display.setColor(int(0xFF0000))
-    display.drawPixel(abs(int(pose_y*12)),abs(int(pose_x*12)))
-
+    display.drawPixel(abs(int(pose_y*12)), abs(int(pose_x*12)))
+    ### =========== =========== =========== ###
+    ### =========== Manual Mode =========== ###
+    ### =========== =========== =========== ###
     if mode == 'manual':
         key = keyboard.getKey()
         while (keyboard.getKey() != -1):
@@ -421,6 +461,103 @@ while robot.step(timestep) != -1 and mode != 'planner':
             vL *= 0.75
             vR *= 0.75
 
+    if mode == 'autonomous':
+        rotation_time = 9.63  # Adjust this value to get a 90 degree turn
+        desired_rotation = 1.57
+
+        if (beginning == 0):
+            vL = 0
+            vR = 0
+            beginning = 1
+
+        elif (wall_counter % 1 == 0):
+            current_heading = (compass.getValues()[0]*90)*(math.pi/180)
+            if (wall_counter == 0 or wall_counter == 1):
+                rotation = current_heading - initial_heading
+            elif (wall_counter == 2 or wall_counter == 4 or wall_counter == 8):
+                rotation = current_heading
+            elif (wall_counter == 3 or wall_counter == 7):
+                rotation = current_heading - initial_heading + 0.096
+            elif (wall_counter == 5 or wall_counter == 9):
+                rotation = current_heading - initial_heading + 0.045
+            elif (wall_counter == 6):
+                rotation = current_heading
+            elif (wall_counter == 7):
+                rotation = current_heading - (initial_heading + 0.0162)
+
+            vL = 0.2*MAX_SPEED
+            vR = -0.2*MAX_SPEED
+
+            if abs(rotation) >= desired_rotation:
+                wall_counter += 0.5
+
+                robot_parts["wheel_left_joint"].setVelocity(-0.2*MAX_SPEED)
+                robot_parts["wheel_right_joint"].setVelocity(0.2*MAX_SPEED)
+                robot.step(864)
+
+                robot_parts["wheel_left_joint"].setVelocity(0)
+                robot_parts["wheel_right_joint"].setVelocity(0)
+                robot.step(1000)
+
+                initial_x = gps.getValues()[0]
+                initial_y = gps.getValues()[1]
+
+        else:
+            if (lidar_sensor_readings[250] > 2.1):
+                vL = MAX_SPEED
+                vR = MAX_SPEED
+
+                if (stage_counter == 5 or stage_counter == 9):
+                    current_x = gps.getValues()[0]
+                    delta_x = math.copysign(
+                        1, current_x) * abs(current_x - initial_x)
+                    if (abs(delta_x) >= 18.3):
+                        wall_counter += 0.5
+                        stage_counter += 1
+                        initial_heading = (compass.getValues()[
+                                           0]*90)*(math.pi/180)
+                        if (stage_counter == 10):
+                            threshold_value = 0.5
+                            thresholded_map = np.multiply(
+                                map > threshold_value, 1)
+                            map_name = 'map.npy'
+
+                            # save the thresholded map data to a file
+                            map_trimmed = thresholded_map[0:800, 0:360]
+                            np.save(map_name, map_trimmed)
+                            print("Map file saved as %s" % (map_name))
+                            robot_parts["wheel_left_joint"].setVelocity(0)
+                            robot_parts["wheel_right_joint"].setVelocity(0)
+                            break
+
+                elif (stage_counter == 6):
+                    if (lidar_sensor_readings[250] <= 5.45):
+                        wall_counter += 0.5
+                        stage_counter += 1
+                        initial_heading = (compass.getValues()[
+                                           0]*90)*(math.pi/180)
+
+                elif (stage_counter == 8):
+                    current_y = gps.getValues()[1]
+                    delta_y = math.copysign(
+                        1, current_y) * abs(current_y - initial_y)
+                    if (abs(delta_y) >= 2.3):
+                        wall_counter += 0.5
+                        stage_counter += 1
+                        initial_heading = (compass.getValues()[
+                                           0]*90)*(math.pi/180)
+            else:
+                wall_counter += 0.5
+
+                robot_parts["wheel_left_joint"].setVelocity(0)
+                robot_parts["wheel_right_joint"].setVelocity(0)
+                robot.step(1000)
+
+                initial_heading = (compass.getValues()[0]*90)*(math.pi/180)
+
+                stage_counter += 1
+
+    # Actuator commands
     robot_parts["wheel_left_joint"].setVelocity(0.5*vL)
     robot_parts["wheel_right_joint"].setVelocity(0.5*vR)
 
@@ -436,3 +573,139 @@ while robot.step(timestep) != -1 and mode != 'planner':
         robot_parts["gripper_right_finger_joint"].setPosition(0.045)
         if left_gripper_enc.getValue() >= 0.044:
             gripper_status = "open"
+
+    # print("X: %f Y: %f Theta: %f" % (pose_x, pose_y, pose_theta))
+
+### =========== =========== =========== ###
+### =========== Path Following =========== ###
+### =========== =========== =========== ###
+while robot.step(timestep) != -1 and mode == 'path_following':
+    ### =========== =========== =========== ###
+    ### =========== Mapping =========== ###
+    ### =========== =========== =========== ###
+    # Ground truth pose
+    pose_x = 15 - gps.getValues()[0]
+    pose_y = 8 - gps.getValues()[1]
+
+    n = compass.getValues()
+    rad = -((math.atan2(n[1], n[0]))-1.5708)
+    pose_theta = rad
+
+    lidar_sensor_readings = lidar.getRangeImage()
+    lidar_sensor_readings = lidar_sensor_readings[83:len(
+        lidar_sensor_readings)-83]
+
+    # load the map from disk
+    map = np.load('./config_space.npy')
+    # Create an instance of the RRT class and find a path
+    path = []
+    start_n = (0, 0)
+    waypoint_n = (0, 0)
+    # Load the first waypoint only
+    key = keyboard.getKey()
+    while (keyboard.getKey() != -1):
+        pass
+    # if key == keyboard.LEFT:
+    #     vL = -MAX_SPEED
+    #     vR = MAX_SPEED
+    # elif key == keyboard.RIGHT:
+    #     vL = MAX_SPEED
+    #     vR = -MAX_SPEED
+    # elif key == keyboard.UP:
+    #     vL = MAX_SPEED
+    #     vR = MAX_SPEED
+    # elif key == keyboard.DOWN:
+    #     vL = -MAX_SPEED
+    #     vR = -MAX_SPEED
+    # elif key == ord(' '):
+    #     vL = 0
+    #     vR = 0
+    if key == ord('F'):
+        # Inital position and first waypoint
+        # print("-> First waypoint: ")
+        start_n = (256, 96)
+        waypoint_n = (134, 18)
+        # print("Start:", start_n)
+        # print("waypoint_n:", start_n)
+    elif key == ord('N'):
+        # print("-> Getting New wypoints:")
+        if waypoint_i == len(waypoints_map)-1:
+            waypoint_i = 0
+            start_n = (256, 96)
+            waypoint_n = (134, 18)
+        # move on to the next waypoint
+        else:
+            start_n = (waypoints_map[waypoint_i][0],
+                       waypoints_map[waypoint_i][1])
+            waypoint_n = (waypoints_map[waypoint_i+1][0],
+                          waypoints_map[waypoint_i+1][1])
+            waypoint_i += 1
+        # print("start_n: ", start_n[0], start_n[1])
+        # print("waypoint_n: ", waypoint_n[0], waypoint_n[1])
+    # else:  # slow down
+    #     vL *= 0.75
+    #     vR *= 0.75
+
+    if start_n != (0, 0) and waypoint_n != (0, 0):
+        # init arbitrary value
+        min_path = [(0, 0)] * 50
+        # get the smoothest path possible
+        for i in range(75):
+            while path == []:
+                # iterate until you get a valid path
+                # Create an instance of the RRT class and find a path
+                rrt = RRT(start_n, waypoint_n, map)
+                # get the path
+                path = rrt.find_path()
+            # get the smallest path possible
+            if path != []:
+                if len(path) <= len(min_path):
+                    min_path = path
+
+        if path and min_path[0] != (0, 0):
+            path = min_path
+            # Apply smoothin algorithm to path
+            epsilon = 3.0
+            path = smooth_path(path, epsilon)
+
+            # Create Figure
+            fig, ax = plt.subplots()
+            # Plot the configuration space
+            ax.imshow(map, cmap='binary')
+            # Plot the path and the obstacles
+            plt.plot(start_n[1], start_n[0], 'go')
+            plt.plot(waypoint_n[1], waypoint_n[0], 'ro')
+            # plt.imshow(config_space)
+            x, y = zip(*path)
+            plt.plot(y, x, '-b')
+            plt.show()
+
+            path_w = []
+            for node in path:
+                x = (abs(int(node[0]/12)))
+                y = (abs(int(node[1]/12)))
+                # create a node for the world coordinate system
+                node_w = (x, y)
+                # paint the world path
+                ax.scatter(x, y)
+                path_w.append(node_w)
+            # save the world coordinate waypoint to disk
+            np.save("single_path.npy", path_w)
+            # print("--> Printing Path: ")
+            # print(path_w)
+
+            # Apply a path smoothing algo
+        else:
+            print("path failed...")
+            print(path)
+    # Implement feedback control loop
+
+    # Actuator commands
+    robot_parts["wheel_left_joint"].setVelocity(0.5*vL)
+    robot_parts["wheel_right_joint"].setVelocity(0.5*vR)
+
+
+while robot.step(timestep) != -1:
+    # there is a bug where webots have to be restarted if the controller exits on Windows
+    # this is to keep the controller running
+    pass
