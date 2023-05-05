@@ -97,10 +97,12 @@ lidar_offsets = lidar_offsets[83:len(lidar_offsets)-83]
 
 map = None
 
-#mode = 'manual'
+# mode = 'manual'
 mode = 'autonomous'
 # mode = 'SLAM'
 # mode = 'planner'
+
+arm_mode = 'manual'
 
 map = np.zeros(shape=[360, 192])
 # map = np.zeros(shape=[372, 372])
@@ -587,6 +589,26 @@ while robot.step(timestep) != -1 and mode != 'planner':
         robot_parts["gripper_right_finger_joint"].setPosition(0.045)
         if left_gripper_enc.getValue() >= 0.044:
             gripper_status = "open"
+
+    if arm_mode == 'manual':
+        key = keyboard.getKey()
+        while (keyboard.getKey() != -1):
+            pass
+        if key == keyboard.LEFT:
+            vL = -MAX_SPEED
+            vR = MAX_SPEED
+        elif key == keyboard.RIGHT:
+            vL = MAX_SPEED
+            vR = -MAX_SPEED
+        elif key == keyboard.UP:
+            vL = MAX_SPEED
+            vR = MAX_SPEED
+        elif key == keyboard.DOWN:
+            vL = -MAX_SPEED
+            vR = -MAX_SPEED
+        elif key == ord(' '):
+            vL = 0
+            vR = 0
 
     # print("X: %f Y: %f Theta: %f" % (pose_x, pose_y, pose_theta))
 
