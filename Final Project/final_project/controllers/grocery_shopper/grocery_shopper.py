@@ -112,6 +112,9 @@ map = np.zeros(shape=[360, 192])
 wall_counter = 0
 beginning = 0
 stage_counter = 0
+gripper_status = "closed"
+state = 0
+path_follow = False
 
 while robot.step(timestep) != -1:
     initial_heading = (compass.getValues()[0]*90)*(math.pi/180)
@@ -357,9 +360,6 @@ if mode == 'planner':
         print(path)
 # ------------------------------------------------------------------
 
-
-gripper_status = "closed"
-
 # Main Loop
 while robot.step(timestep) != -1 and mode != 'planner' and mode != 'path_following':
     ### =========== =========== =========== ###
@@ -580,9 +580,6 @@ while robot.step(timestep) != -1 and mode != 'planner' and mode != 'path_followi
 ### =========== Path Following =========== ###
 ### =========== =========== =========== ###
 while robot.step(timestep) != -1 and mode == 'path_following':
-    ### =========== =========== =========== ###
-    ### =========== Mapping =========== ###
-    ### =========== =========== =========== ###
     # Ground truth pose
     pose_x = 15 - gps.getValues()[0]
     pose_y = 8 - gps.getValues()[1]
@@ -599,27 +596,13 @@ while robot.step(timestep) != -1 and mode == 'path_following':
     map = np.load('./config_space.npy')
     # Create an instance of the RRT class and find a path
     path = []
+    path_w = []
     start_n = (0, 0)
     waypoint_n = (0, 0)
     # Load the first waypoint only
     key = keyboard.getKey()
     while (keyboard.getKey() != -1):
         pass
-    # if key == keyboard.LEFT:
-    #     vL = -MAX_SPEED
-    #     vR = MAX_SPEED
-    # elif key == keyboard.RIGHT:
-    #     vL = MAX_SPEED
-    #     vR = -MAX_SPEED
-    # elif key == keyboard.UP:
-    #     vL = MAX_SPEED
-    #     vR = MAX_SPEED
-    # elif key == keyboard.DOWN:
-    #     vL = -MAX_SPEED
-    #     vR = -MAX_SPEED
-    # elif key == ord(' '):
-    #     vL = 0
-    #     vR = 0
     if key == ord('F'):
         # Inital position and first waypoint
         # print("-> First waypoint: ")
@@ -645,12 +628,14 @@ while robot.step(timestep) != -1 and mode == 'path_following':
     # else:  # slow down
     #     vL *= 0.75
     #     vR *= 0.75
+    elif key == ord('R'):
+        path_follow = True
 
     if start_n != (0, 0) and waypoint_n != (0, 0):
         # init arbitrary value
-        min_path = [(0, 0)] * 50
+        min_path = [(-1, -1)] * 50
         # get the smoothest path possible
-        for i in range(75):
+        for i in range(200):
             while path == []:
                 # iterate until you get a valid path
                 # Create an instance of the RRT class and find a path
@@ -662,10 +647,10 @@ while robot.step(timestep) != -1 and mode == 'path_following':
                 if len(path) <= len(min_path):
                     min_path = path
 
-        if path and min_path[0] != (0, 0):
+        if path and min_path[0] != (-1, -1):
             path = min_path
             # Apply smoothin algorithm to path
-            epsilon = 3.0
+            epsilon = 5.0
             path = smooth_path(path, epsilon)
 
             # Create Figure
@@ -680,7 +665,6 @@ while robot.step(timestep) != -1 and mode == 'path_following':
             plt.plot(y, x, '-b')
             plt.show()
 
-            path_w = []
             for node in path:
                 x = (abs(int(node[0]/12)))
                 y = (abs(int(node[1]/12)))
@@ -700,9 +684,105 @@ while robot.step(timestep) != -1 and mode == 'path_following':
             print(path)
     # Implement feedback control loop
 
-    # Actuator commands
+    # load the most recent single_path
+    # if start_n != (0, 0) and waypoint_n != (0, 0) and path != []:
+    if path_follow:
+        path = np.load('single_path.npy')
+
+        # Part 3.2: Feedback controller
+        goal_x = path[state][0]
+        goal_y = path[state][1]
+
+        # STEP 1: Calculate the error
+        rho = math.sqrt((pose_x - goal_x)**2 + (pose_y - goal_y)**2)
+        alpha = math.atan2((goal_y-pose_y), (goal_x-pose_x))-pose_theta
+        nu = alpha - pose_theta
+
+        # STEP 2: Controller
+        # Clamp error values
+        if alpha < -3.1415:
+            alpha += 6.283
+        if nu < -3.1415:
+            nu += 6.283
+
+        # need conditional logic to determine controller gains
+        # Prioritize Bearing error
+        p1, p2, p3 = 0, 0, 0
+        if (abs(alpha) > 0.3):
+            p1 = 1  # small gains for rho
+            p2 = 10  # higher gains for alpha
+            p3 = 0  # no update for nu
+        else:
+            # Prioratize position error
+            if (abs(rho) > 0.5):
+                p1 = 10  # higher gains for rho i.e. position
+                p2 = 1
+                p3 = 0
+            else:
+                # Prioritize heading error
+                p1 = 1
+                p2 = 1
+                p3 = 20
+
+        radius = (MAX_SPEED_MS/MAX_SPEED)
+        d = AXLE_LENGTH
+
+        xR_dot = p1 * rho
+        thetaR_dot = p2 * alpha + p3 * nu
+
+        # STEP 3: Compute wheelspeeds
+        vL = xR_dot - (thetaR_dot/2)*d  # Left wheel velocity in rad/s
+        vR = xR_dot + (thetaR_dot/2)*d
+
+        # Normalize wheelspeed
+        # (Keep the wheel speeds a bit less than the actual platform MAX_SPEED to minimize jerk)
+
+        # 2.7 clamp the velocities if they exceed MAX_SPEED
+        if vL >= MAX_SPEED:
+            vL = 0.5 * MAX_SPEED
+        elif abs(vL) >= MAX_SPEED:
+            vL = - 0.5 * MAX_SPEED
+
+        if vR >= MAX_SPEED:
+            vR = 0.5 * MAX_SPEED
+        elif abs(vR) >= MAX_SPEED:
+            vR = - 0.5 * MAX_SPEED
+
+        # STEP 2.8 Create stopping criteria
+        if abs(rho) <= 0.5 and alpha <= abs(0.5):
+            state += 1
+            # print("Curr:", waypoints[state][0], waypoints[state][1])
+            # print("Next:", waypoints[state+1][0], waypoints[state+1][1])
+            if i == 2:
+                vL = 0
+                vR = 0
+                timestep = -1
+                path_follow = False
+
+        # Debugging Code
+        print(f'Waiptoint: {state=}')
+        print(f'Pose: {pose_x=} {pose_y=} {pose_theta=}')
+        print(f'Goal: {goal_x=} {goal_y=} {alpha=}')
+        print(f'Error values: {rho=} {alpha=} {nu=}')
+        print(f'Speeds: {vR=} {vL=}')
+        print("---------------------------------")
+        # Odometry code. Don't change vL or vR speeds after this line.
+        # We are using GPS and compass for this lab to get a better pose but this is how you'll do the odometry
+        # pose_x += (vL+vR)/2/MAX_SPEED*MAX_SPEED_MS * \
+        #     timestep/1000.0*math.cos(pose_theta)
+        # pose_y -= (vL+vR)/2/MAX_SPEED*MAX_SPEED_MS * \
+        #     timestep/1000.0*math.sin(pose_theta)
+        # pose_theta += (vR-vL)/AXLE_LENGTH/MAX_SPEED * \
+        #     MAX_SPEED_MS*timestep/1000.0
+
+        # print("X: %f Z: %f Theta: %f" % (pose_x, pose_y, pose_theta))
+
+        # Actuator commands
     robot_parts["wheel_left_joint"].setVelocity(0.5*vL)
     robot_parts["wheel_right_joint"].setVelocity(0.5*vR)
+
+    # robot_parts["wheel_left_joint"].setVelocity(0)
+    # robot_parts["wheel_right_joint"].setVelocity(0)
 
 
 while robot.step(timestep) != -1:
