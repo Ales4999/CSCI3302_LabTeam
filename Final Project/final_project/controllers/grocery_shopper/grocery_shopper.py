@@ -13,6 +13,14 @@ import random
 import numpy as np
 from matplotlib import pyplot as plt
 from scipy.signal import convolve2d
+import config
+import helpers
+from ikpy.chain import Chain
+from ikpy.link import OriginLink, URDFLink
+import tempfile
+import matplotlib.pyplot
+from mpl_toolkits.mplot3d import Axes3D
+
 # Initialization
 print("=== Initializing Grocery Shopper...")
 # Consts
@@ -38,19 +46,23 @@ part_names = ("head_2_joint", "head_1_joint", "torso_lift_joint", "arm_1_joint",
               "arm_6_joint",  "arm_7_joint",  "wheel_left_joint", "wheel_right_joint",
               "gripper_left_finger_joint", "gripper_right_finger_joint")
 
-#
-
 # All motors except the wheels are controlled by position control. The wheels
 # are controlled by a velocity controller. We therefore set their position to infinite.
 target_pos = (0.0, 0.0, 0.35, 0.07, 1.02, -3.16, 1.27,
               1.32, 0.0, 1.41, 'inf', 'inf', 0.045, 0.045)
 
+part_positions = target_pos
+
 robot_parts = {}
 for i, part_name in enumerate(part_names):
     robot_parts[part_name] = robot.getDevice(part_name)
     robot_parts[part_name].setPosition(float(target_pos[i]))
-    robot_parts[part_name].setVelocity(
-        robot_parts[part_name].getMaxVelocity() / 2.0)
+    robot_parts[part_name].setVelocity(robot_parts[part_name].getMaxVelocity() / 2.0)
+
+# current_pos_robot_parts = {}
+# for j, part_name in enumerate(part_names):
+#     current_pos_robot_parts[part_name] = robot.getDevice(part_name)
+#     current_pos_robot_parts[part_name] = robot.getDevice(part_name)
 
 # Enable gripper encoders (position sensors)
 left_gripper_enc = robot.getDevice("gripper_left_finger_joint_sensor")
@@ -97,8 +109,8 @@ lidar_offsets = lidar_offsets[83:len(lidar_offsets)-83]
 
 map = None
 
-# mode = 'manual'
-mode = 'autonomous'
+mode = 'manual'
+# mode = 'autonomous'
 # mode = 'SLAM'
 # mode = 'planner'
 
@@ -348,7 +360,7 @@ gripper_status = "closed"
 
 # Main Loop
 while robot.step(timestep) != -1 and mode != 'planner':
-
+    key = keyboard.getKey()
     ###################
     #
     # Mapping
@@ -439,7 +451,6 @@ while robot.step(timestep) != -1 and mode != 'planner':
     display.drawPixel(abs(int(pose_y*12)), abs(int(pose_x*12)))
 
     if mode == 'manual':
-        key = keyboard.getKey()
         while (keyboard.getKey() != -1):
             pass
         if key == keyboard.LEFT:
@@ -477,6 +488,7 @@ while robot.step(timestep) != -1 and mode != 'planner':
             plt.show()
             print("Map loaded...")
         else:  # slow down
+            # print('in else')
             vL *= 0.75
             vR *= 0.75
             
@@ -569,8 +581,6 @@ while robot.step(timestep) != -1 and mode != 'planner':
                 initial_heading = (compass.getValues()[0]*90)*(math.pi/180)
 
                 stage_counter += 1
-            
-
              
 
     # Actuator commands
@@ -591,27 +601,161 @@ while robot.step(timestep) != -1 and mode != 'planner':
             gripper_status = "open"
 
     if arm_mode == 'manual':
-        key = keyboard.getKey()
         while (keyboard.getKey() != -1):
             pass
-        if key == keyboard.LEFT:
-            vL = -MAX_SPEED
-            vR = MAX_SPEED
-        elif key == keyboard.RIGHT:
-            vL = MAX_SPEED
-            vR = -MAX_SPEED
-        elif key == keyboard.UP:
-            vL = MAX_SPEED
-            vR = MAX_SPEED
-        elif key == keyboard.DOWN:
-            vL = -MAX_SPEED
-            vR = -MAX_SPEED
-        elif key == ord(' '):
-            vL = 0
-            vR = 0
+        if key == ord('1'):
+            part_positions_list = list(part_positions)
+            part_positions_list[3] += 0.025
+            part_positions_list[3] = min(part_positions_list[3], 2.68)  
+            part_positions = tuple(part_positions_list)
+
+            robot_parts["arm_1_joint"].setPosition(float(part_positions[3]))
+            robot_parts["arm_1_joint"].setVelocity(robot_parts["arm_1_joint"].getMaxVelocity() / 2.0)
+
+        elif key == ord('Q'):
+            part_positions_list = list(part_positions)
+            part_positions_list[3] -= 0.025
+            part_positions_list[3] = max(part_positions_list[3], 0.07)
+            part_positions = tuple(part_positions_list)
+
+            robot_parts["arm_1_joint"].setPosition(float(part_positions[3]))
+            robot_parts["arm_1_joint"].setVelocity(robot_parts["arm_1_joint"].getMaxVelocity() / 2.0)
+
+        elif key == ord('2'):
+            part_positions_list = list(part_positions)
+            part_positions_list[4] += 0.025
+            part_positions_list[4] = min(part_positions_list[4], 1.02)  
+            part_positions = tuple(part_positions_list)
+
+            robot_parts["arm_2_joint"].setPosition(float(part_positions[4]))
+            robot_parts["arm_2_joint"].setVelocity(robot_parts["arm_2_joint"].getMaxVelocity() / 2.0)
+
+        elif key == ord('W'):
+            part_positions_list = list(part_positions)
+            part_positions_list[4] -= 0.025
+            part_positions_list[4] = max(part_positions_list[4], -1.5)
+            part_positions = tuple(part_positions_list)
+
+            robot_parts["arm_2_joint"].setPosition(float(part_positions[4]))
+            robot_parts["arm_2_joint"].setVelocity(robot_parts["arm_2_joint"].getMaxVelocity() / 2.0)
+
+        elif key == ord('3'):
+            part_positions_list = list(part_positions)
+            part_positions_list[5] += 0.025
+            part_positions_list[5] = min(part_positions_list[5], 1.5)  
+            part_positions = tuple(part_positions_list)
+
+            robot_parts["arm_3_joint"].setPosition(float(part_positions[5]))
+            robot_parts["arm_3_joint"].setVelocity(robot_parts["arm_3_joint"].getMaxVelocity() / 2.0)
+
+        elif key == ord('E'):
+            part_positions_list = list(part_positions)
+            part_positions_list[5] -= 0.025
+            part_positions_list[5] = max(part_positions_list[5], -3.46)
+            part_positions = tuple(part_positions_list)
+
+            robot_parts["arm_3_joint"].setPosition(float(part_positions[5]))
+            robot_parts["arm_3_joint"].setVelocity(robot_parts["arm_3_joint"].getMaxVelocity() / 2.0)
+        
+        elif key == ord('4'):
+            part_positions_list = list(part_positions)
+            part_positions_list[6] += 0.025
+            part_positions_list[6] = min(part_positions_list[6], 2.29)  
+            part_positions = tuple(part_positions_list)
+
+            robot_parts["arm_4_joint"].setPosition(float(part_positions[6]))
+            robot_parts["arm_4_joint"].setVelocity(robot_parts["arm_4_joint"].getMaxVelocity() / 2.0)
+
+        elif key == ord('R'):
+            part_positions_list = list(part_positions)
+            part_positions_list[6] -= 0.025
+            part_positions_list[6] = max(part_positions_list[6], -0.32)
+            part_positions = tuple(part_positions_list)
+
+            robot_parts["arm_4_joint"].setPosition(float(part_positions[6]))
+            robot_parts["arm_4_joint"].setVelocity(robot_parts["arm_4_joint"].getMaxVelocity() / 2.0)
+
+        elif key == ord('5'):
+            part_positions_list = list(part_positions)
+            part_positions_list[7] += 0.025
+            part_positions_list[7] = min(part_positions_list[7], 2.07)  
+            part_positions = tuple(part_positions_list)
+
+            robot_parts["arm_5_joint"].setPosition(float(part_positions[7]))
+            robot_parts["arm_5_joint"].setVelocity(robot_parts["arm_5_joint"].getMaxVelocity() / 2.0)
+
+        elif key == ord('T'):
+            part_positions_list = list(part_positions)
+            part_positions_list[7] -= 0.025
+            part_positions_list[7] = max(part_positions_list[7], -2.07)
+            part_positions = tuple(part_positions_list)
+
+            robot_parts["arm_5_joint"].setPosition(float(part_positions[7]))
+            robot_parts["arm_5_joint"].setVelocity(robot_parts["arm_5_joint"].getMaxVelocity() / 2.0)
+
+        elif key == ord('6'):
+            part_positions_list = list(part_positions)
+            part_positions_list[8] += 0.025
+            part_positions_list[8] = min(part_positions_list[8], 1.39)  
+            part_positions = tuple(part_positions_list)
+
+            robot_parts["arm_6_joint"].setPosition(float(part_positions[8]))
+            robot_parts["arm_6_joint"].setVelocity(robot_parts["arm_6_joint"].getMaxVelocity() / 2.0)
+
+        elif key == ord('Y'):
+            part_positions_list = list(part_positions)
+            part_positions_list[8] -= 0.025
+            part_positions_list[8] = max(part_positions_list[8], -1.39)
+            part_positions = tuple(part_positions_list)
+
+            robot_parts["arm_6_joint"].setPosition(float(part_positions[8]))
+            robot_parts["arm_6_joint"].setVelocity(robot_parts["arm_6_joint"].getMaxVelocity() / 2.0)
+        
+        elif key == ord('7'):
+            part_positions_list = list(part_positions)
+            part_positions_list[9] += 0.025
+            part_positions_list[9] = min(part_positions_list[9], 2.07)  
+            part_positions = tuple(part_positions_list)
+
+            robot_parts["arm_7_joint"].setPosition(float(part_positions[9]))
+            robot_parts["arm_7_joint"].setVelocity(robot_parts["arm_7_joint"].getMaxVelocity() / 2.0)
+
+        elif key == ord('U'):
+            part_positions_list = list(part_positions)
+            part_positions_list[9] -= 0.025
+            part_positions_list[9] = max(part_positions_list[9], -2.07)
+            part_positions = tuple(part_positions_list)
+
+            robot_parts["arm_7_joint"].setPosition(float(part_positions[9]))
+            robot_parts["arm_7_joint"].setVelocity(robot_parts["arm_7_joint"].getMaxVelocity() / 2.0)
+
+        elif key == ord('J'):
+            part_positions_list = list(part_positions)
+            part_positions_list[12] += 0.005
+            part_positions_list[13] += 0.005
+            part_positions_list[12] = min(part_positions_list[12], 0.045)
+            part_positions_list[13] = min(part_positions_list[13], 0.045)
+            part_positions = tuple(part_positions_list)
+
+            robot_parts["gripper_left_finger_joint"].setPosition(float(part_positions[12]))
+            robot_parts["gripper_right_finger_joint"].setPosition(float(part_positions[13]))
+            robot_parts["gripper_left_finger_joint"].setVelocity(robot_parts["gripper_left_finger_joint"].getMaxVelocity() / 2.0)
+            robot_parts["gripper_right_finger_joint"].setVelocity(robot_parts["gripper_right_finger_joint"].getMaxVelocity() / 2.0)
+
+        elif key == ord('K'):
+            part_positions_list = list(part_positions)
+            part_positions_list[12] -= 0.005
+            part_positions_list[13] -= 0.005
+            part_positions_list[12] = max(part_positions_list[12], 0)
+            part_positions_list[13] = max(part_positions_list[13], 0)
+            part_positions = tuple(part_positions_list)
+
+            robot_parts["gripper_left_finger_joint"].setPosition(float(part_positions[12]))
+            robot_parts["gripper_right_finger_joint"].setPosition(float(part_positions[13]))
+            robot_parts["gripper_left_finger_joint"].setVelocity(robot_parts["gripper_left_finger_joint"].getMaxVelocity() / 2.0)
+            robot_parts["gripper_right_finger_joint"].setVelocity(robot_parts["gripper_right_finger_joint"].getMaxVelocity() / 2.0)
 
     # print("X: %f Y: %f Theta: %f" % (pose_x, pose_y, pose_theta))
-
 
 while robot.step(timestep) != -1:
     # there is a bug where webots have to be restarted if the controller exits on Windows
