@@ -370,19 +370,19 @@ while robot.step(timestep) != -1 and mode != 'planner':
     ###################
 
     # Ground truth pose
-    pose_x = 15 - gps.getValues()[0]
+    pose_x = 15 - gps.getValues()[0] #adjust the origin correctly
     pose_y = 8 - gps.getValues()[1]
 
     n = compass.getValues()
     rad = -((math.atan2(n[1], n[0]))-1.5708)
     pose_theta = rad
 
-    lidar_sensor_readings = lidar.getRangeImage()
+    lidar_sensor_readings = lidar.getRangeImage() #get all lidar scans
     lidar_sensor_readings = lidar_sensor_readings[83:len(
         lidar_sensor_readings)-83]
 
     for i, rho in enumerate(lidar_sensor_readings):
-        alpha = lidar_offsets[i]
+        alpha = lidar_offsets[i] #add correct offset
 
         if rho > LIDAR_SENSOR_MAX_RANGE:
             continue
@@ -396,12 +396,9 @@ while robot.step(timestep) != -1 and mode != 'planner':
         # Convert detection from robot coordinates into world coordinates
         wx = math.cos(t)*rx - math.sin(t)*ry + pose_x
         wy = math.sin(t)*rx + math.cos(t)*ry + pose_y
-        # print(wx, wy)
 
         ################ ^ [End] Do not modify ^ ##################
 
-        # print("Rho: %f Alpha: %f rx: %f ry: %f wx: %f wy: %f, x: %f, y: %f" % (rho,alpha,rx,ry,wx,wy,x,y))
-        # print(wx,wy)
         if wx >= 30:
             wx = 29.999
         if wy >= 16:
@@ -412,39 +409,17 @@ while robot.step(timestep) != -1 and mode != 'planner':
             x = abs(int(wx*12))
             y = abs(int(wy*12))
 
-            # if x >= 360:
-            # continue
-            # if y >= 360 :
-            # continue
-
-            # scale = 300
-            # display.setColor(0xFF0000)  # red
-            # display_x = round(pose_x * scale)
-            # display_y = round(pose_y * scale)
-
             increment_value = 5e-3
-
-            # need to bound increment value?
-            # or index?
-            # print(x,y)
             map[x, y] += increment_value
 
-            # check what is getting stored in the map
-            # print(map[x][y])
-
             # make sure the value does not exceed 1
-            # map = np.clip(map, None, 1)  # Keep values within [0,1]
-            # You will eventually REPLACE the following lines with a more robust version of the map
-            # with a grayscale drawing containing more levels than just 0 and 1.
-
-            # draw map on diplsay
+            g = min(map[x][y], 1.0)
+            
             # convert the gray scale
             # set g to a vallue depending on our map
-            # g_map = min( map[x][y], 1.0)
-            g = min(map[x][y], 1.0)
-
             color = (g*256**2+g*256+g)*255
 
+            # draw map on diplsay
             display.setColor(int(color))
             display.drawPixel(y, x)
 
@@ -452,25 +427,25 @@ while robot.step(timestep) != -1 and mode != 'planner':
     display.setColor(int(0xFF0000))
     display.drawPixel(abs(int(pose_y*12)), abs(int(pose_x*12)))
 
-    if mode == 'manual':
+    if mode == 'manual': #manual mode using arrow keys to drive robot
         while (keyboard.getKey() != -1):
             pass
         if key == keyboard.LEFT:
-            vL = -MAX_SPEED
+            vL = -MAX_SPEED #rotate left
             vR = MAX_SPEED
         elif key == keyboard.RIGHT:
-            vL = MAX_SPEED
+            vL = MAX_SPEED #rotate right
             vR = -MAX_SPEED
         elif key == keyboard.UP:
-            vL = MAX_SPEED
+            vL = MAX_SPEED #go forward
             vR = MAX_SPEED
         elif key == keyboard.DOWN:
-            vL = -MAX_SPEED
+            vL = -MAX_SPEED #go back
             vR = -MAX_SPEED
         elif key == ord(' '):
-            vL = 0
+            vL = 0 #stop the robot
             vR = 0
-        elif key == ord('S'):
+        elif key == ord('S'): #save the map
 
             threshold_value = 0.5
             thresholded_map = np.multiply(map > threshold_value, 1)
@@ -481,7 +456,7 @@ while robot.step(timestep) != -1 and mode != 'planner':
             np.save(map_name, map_trimmed)
             print("Map file saved as %s" % (map_name))
 
-        elif key == ord('L'):
+        elif key == ord('L'): #load the map
             map = np.load("map.npy")
             plt.imshow(np.fliplr(map))
             plt.title('Map')
@@ -490,22 +465,23 @@ while robot.step(timestep) != -1 and mode != 'planner':
             plt.show()
             print("Map loaded...")
         else:  # slow down
-            # print('in else')
             vL *= 0.75
             vR *= 0.75
             
     if mode == 'autonomous':
-        rotation_time = 9.63  # Adjust this value to get a 90 degree turn
-        desired_rotation = 1.57
+        desired_rotation = 1.57 #want the robot to rotate 90deg everytime it gets too close to a wall infront of it
 
-        if (beginning == 0):
+        if (beginning == 0): #make sure the robot initially begins at a standstill
             vL = 0
             vR = 0
             beginning = 1
             
-        elif (wall_counter%1 == 0):
-            current_heading = (compass.getValues()[0]*90)*(math.pi/180)
-            if(wall_counter == 0 or wall_counter == 1):
+        elif (wall_counter%1 == 0): #incrementing the counter by 0.5 so everytime it has a remainder of 0.5 it won't enter this if
+            current_heading = (compass.getValues()[0]*90)*(math.pi/180) #convert the compass angle to an understandable degree measurment
+
+            #these wall_counters are for all the slight edge cases I had to account for
+            #since the compass values aren't great, I had to account for many different edge cases depending on which section of the mapping it was at
+            if(wall_counter == 0 or wall_counter == 1): 
                 rotation = current_heading - initial_heading
             elif(wall_counter == 2 or wall_counter == 4 or wall_counter == 8):
                 rotation = current_heading
@@ -518,64 +494,71 @@ while robot.step(timestep) != -1 and mode != 'planner':
             elif(wall_counter == 7):
                 rotation = current_heading - (initial_heading + 0.0162)
             
+            #rotate on the spot
             vL = 0.2*MAX_SPEED
             vR = -0.2*MAX_SPEED
-
+            #stop rotating once the rotation is greater than 90 degrees
             if abs(rotation) >= desired_rotation:
                 wall_counter += 0.5
-
+                #rotate on the spot to offset the steering error that gets created when trying to go straight again
                 robot_parts["wheel_left_joint"].setVelocity(-0.2*MAX_SPEED)
                 robot_parts["wheel_right_joint"].setVelocity(0.2*MAX_SPEED)
-                robot.step(864)
-                
+                robot.step(864) 
+                #stop the robot
                 robot_parts["wheel_left_joint"].setVelocity(0)
                 robot_parts["wheel_right_joint"].setVelocity(0)
                 robot.step(1000)
                 
+                #collect the current x and y coordinates of the robot
                 initial_x = gps.getValues()[0]
                 initial_y = gps.getValues()[1]
 
         else:
-            if(lidar_sensor_readings[250] > 2.1):
-                vL = MAX_SPEED
+            if(lidar_sensor_readings[250] > 2.1): #while the robot isn't too close to the wall infront of it
+                #keep going straight
+                vL = MAX_SPEED 
                 vR = MAX_SPEED
-
-                if (stage_counter == 5 or stage_counter == 9):
+                #there is a stage counter that tracks which stage of the mapping the robot is currently at
+                if (stage_counter == 5 or stage_counter == 9): 
                     current_x = gps.getValues()[0]
-                    delta_x = math.copysign(1, current_x) * abs(current_x - initial_x)
-                    if(abs(delta_x) >= 18.3):
+                    delta_x = math.copysign(1, current_x) * abs(current_x - initial_x) #calculate the x difference to see how far it has traveled
+                    if(abs(delta_x) >= 18.3): #if it travels more than 18.3m in the x-direction
+                        #increment counters
                         wall_counter += 0.5
                         stage_counter += 1
                         initial_heading = (compass.getValues()[0]*90)*(math.pi/180)
-                        if(stage_counter == 10):
+                        if(stage_counter == 10): #finished mapping if at this stage
                             threshold_value = 0.5
                             thresholded_map = np.multiply(map > threshold_value, 1)
-                            map_name = 'map.npy'
+                            map_name = 'map.npy' #save the map to map.npy
 
                             # save the thresholded map data to a file
                             map_trimmed = thresholded_map[0:800, 0:360]
                             np.save(map_name, map_trimmed)
                             print("Map file saved as %s" % (map_name))
-                            robot_parts["wheel_left_joint"].setVelocity(0)
+                            robot_parts["wheel_left_joint"].setVelocity(0) #stop the robot
                             robot_parts["wheel_right_joint"].setVelocity(0)
                             break
-
+                
+                #this elif is for getting from one corridor to the next in the middle
                 elif (stage_counter == 6):
-                    if(lidar_sensor_readings[250] <= 5.45):
+                    if(lidar_sensor_readings[250] <= 5.45): 
                         wall_counter += 0.5
                         stage_counter += 1
                         initial_heading = (compass.getValues()[0]*90)*(math.pi/180)
                 
+                #this elif is for getting from the other middle corridor to the next
                 elif (stage_counter == 8):
                     current_y = gps.getValues()[1]
                     delta_y = math.copysign(1, current_y) * abs(current_y - initial_y)
-                    if(abs(delta_y) >= 2.3):
+                    if(abs(delta_y) >= 2.3): #traveled more than 2.3m in the y direction
                         wall_counter += 0.5
                         stage_counter += 1
                         initial_heading = (compass.getValues()[0]*90)*(math.pi/180)
             else:
-                wall_counter += 0.5
+                wall_counter += 0.5 
 
+                #pause the robot
                 robot_parts["wheel_left_joint"].setVelocity(0)
                 robot_parts["wheel_right_joint"].setVelocity(0)
                 robot.step(1000)
@@ -583,46 +566,37 @@ while robot.step(timestep) != -1 and mode != 'planner':
                 initial_heading = (compass.getValues()[0]*90)*(math.pi/180)
 
                 stage_counter += 1
-             
 
-    # Actuator commands
+    #move the robot at 0.5 the max speed
     robot_parts["wheel_left_joint"].setVelocity(0.5*vL)
     robot_parts["wheel_right_joint"].setVelocity(0.5*vR)
 
-    # if (gripper_status == "open"):
-    #     # Close gripper, note that this takes multiple time steps...
-    #     robot_parts["gripper_left_finger_joint"].setPosition(0)
-    #     robot_parts["gripper_right_finger_joint"].setPosition(0)
-    #     if right_gripper_enc.getValue() <= 0.005:
-    #         gripper_status = "closed"
-    # else:
-    #     # Open gripper
-    #     robot_parts["gripper_left_finger_joint"].setPosition(0.045)
-    #     robot_parts["gripper_right_finger_joint"].setPosition(0.045)
-    #     if left_gripper_enc.getValue() >= 0.044:
-    #         gripper_status = "open"
-
-    if arm_mode == 'manual':
+    if arm_mode == 'manual': #manual arm mode means that we can adjust the position of all 7 joints in the robotic arm
         while (keyboard.getKey() != -1):
             pass
-        if key == ord('1'):
-            part_positions_list = list(part_positions)
-            part_positions_list[3] += 0.025
-            part_positions_list[3] = min(part_positions_list[3], 2.68)  
-            part_positions = tuple(part_positions_list)
+        
+        #for all of these next elifs, the intent is the same, each number joint is mapped to it's respective number key on the keyboard to move the joint in a positive direction
+        #the same is done for moving the joint in a negative direction where the key is mapped to the letter directly below its number
+        #so in this case, key 1 moves arm_1_joint up and key Q moves arm_1_joint down. This applies to keys 1-7 and Q-U
+        if key == ord('1'): #if number 1 key is pressed
+            part_positions_list = list(part_positions) #convert the position number to a type list (only way I could work around the error I was getting)
+            part_positions_list[3] += 0.025 #increment the position of the joint by +0.025
+            part_positions_list[3] = min(part_positions_list[3], 2.68) #if the joint has reached it's max position, cap the value at 2.68
+            part_positions = tuple(part_positions_list) #convert the list element back to a tuple for .setPosition()
 
-            robot_parts["arm_1_joint"].setPosition(float(part_positions[3]))
-            robot_parts["arm_1_joint"].setVelocity(robot_parts["arm_1_joint"].getMaxVelocity() / 2.0)
+            robot_parts["arm_1_joint"].setPosition(float(part_positions[3])) #set its new position with the slight increment
+            robot_parts["arm_1_joint"].setVelocity(robot_parts["arm_1_joint"].getMaxVelocity() / 2.0) #move the joint at this velocity
 
-        elif key == ord('Q'):
-            part_positions_list = list(part_positions)
-            part_positions_list[3] -= 0.025
-            part_positions_list[3] = max(part_positions_list[3], 0.07)
-            part_positions = tuple(part_positions_list)
+        elif key == ord('Q'): #if Q key is pressed
+            part_positions_list = list(part_positions) #convert the position number to a type list (only way I could work around the error I was getting)
+            part_positions_list[3] -= 0.025 #decrement the position of the joint by +0.025
+            part_positions_list[3] = max(part_positions_list[3], 0.07) #if the joint has reached it's max position, cap the value at 0.07
+            part_positions = tuple(part_positions_list) #convert the list element back to a tuple for .setPosition()
 
-            robot_parts["arm_1_joint"].setPosition(float(part_positions[3]))
-            robot_parts["arm_1_joint"].setVelocity(robot_parts["arm_1_joint"].getMaxVelocity() / 2.0)
+            robot_parts["arm_1_joint"].setPosition(float(part_positions[3])) #set its new position with the slight decrement
+            robot_parts["arm_1_joint"].setVelocity(robot_parts["arm_1_joint"].getMaxVelocity() / 2.0) #move the joint at this velocity
 
+        #the remaining elifs operate in the exact same fashion as the first if else with every couple of elifs being mapped to the same joint, either increment or decrementing the position of the joint
         elif key == ord('2'):
             part_positions_list = list(part_positions)
             part_positions_list[4] += 0.025
@@ -631,7 +605,7 @@ while robot.step(timestep) != -1 and mode != 'planner':
 
             robot_parts["arm_2_joint"].setPosition(float(part_positions[4]))
             robot_parts["arm_2_joint"].setVelocity(robot_parts["arm_2_joint"].getMaxVelocity() / 2.0)
-
+        #same as above
         elif key == ord('W'):
             part_positions_list = list(part_positions)
             part_positions_list[4] -= 0.025
@@ -640,7 +614,7 @@ while robot.step(timestep) != -1 and mode != 'planner':
 
             robot_parts["arm_2_joint"].setPosition(float(part_positions[4]))
             robot_parts["arm_2_joint"].setVelocity(robot_parts["arm_2_joint"].getMaxVelocity() / 2.0)
-
+        #same as above
         elif key == ord('3'):
             part_positions_list = list(part_positions)
             part_positions_list[5] += 0.025
@@ -649,7 +623,7 @@ while robot.step(timestep) != -1 and mode != 'planner':
 
             robot_parts["arm_3_joint"].setPosition(float(part_positions[5]))
             robot_parts["arm_3_joint"].setVelocity(robot_parts["arm_3_joint"].getMaxVelocity() / 2.0)
-
+        #same as above
         elif key == ord('E'):
             part_positions_list = list(part_positions)
             part_positions_list[5] -= 0.025
@@ -658,7 +632,7 @@ while robot.step(timestep) != -1 and mode != 'planner':
 
             robot_parts["arm_3_joint"].setPosition(float(part_positions[5]))
             robot_parts["arm_3_joint"].setVelocity(robot_parts["arm_3_joint"].getMaxVelocity() / 2.0)
-        
+        #same as above
         elif key == ord('4'):
             part_positions_list = list(part_positions)
             part_positions_list[6] += 0.025
@@ -667,7 +641,7 @@ while robot.step(timestep) != -1 and mode != 'planner':
 
             robot_parts["arm_4_joint"].setPosition(float(part_positions[6]))
             robot_parts["arm_4_joint"].setVelocity(robot_parts["arm_4_joint"].getMaxVelocity() / 2.0)
-
+        #same as above
         elif key == ord('R'):
             part_positions_list = list(part_positions)
             part_positions_list[6] -= 0.025
@@ -676,7 +650,7 @@ while robot.step(timestep) != -1 and mode != 'planner':
 
             robot_parts["arm_4_joint"].setPosition(float(part_positions[6]))
             robot_parts["arm_4_joint"].setVelocity(robot_parts["arm_4_joint"].getMaxVelocity() / 2.0)
-
+        #same as above
         elif key == ord('5'):
             part_positions_list = list(part_positions)
             part_positions_list[7] += 0.025
@@ -685,7 +659,7 @@ while robot.step(timestep) != -1 and mode != 'planner':
 
             robot_parts["arm_5_joint"].setPosition(float(part_positions[7]))
             robot_parts["arm_5_joint"].setVelocity(robot_parts["arm_5_joint"].getMaxVelocity() / 2.0)
-
+        #same as above
         elif key == ord('T'):
             part_positions_list = list(part_positions)
             part_positions_list[7] -= 0.025
@@ -694,7 +668,7 @@ while robot.step(timestep) != -1 and mode != 'planner':
 
             robot_parts["arm_5_joint"].setPosition(float(part_positions[7]))
             robot_parts["arm_5_joint"].setVelocity(robot_parts["arm_5_joint"].getMaxVelocity() / 2.0)
-
+        #same as above
         elif key == ord('6'):
             part_positions_list = list(part_positions)
             part_positions_list[8] += 0.025
@@ -703,7 +677,7 @@ while robot.step(timestep) != -1 and mode != 'planner':
 
             robot_parts["arm_6_joint"].setPosition(float(part_positions[8]))
             robot_parts["arm_6_joint"].setVelocity(robot_parts["arm_6_joint"].getMaxVelocity() / 2.0)
-
+        #same as above
         elif key == ord('Y'):
             part_positions_list = list(part_positions)
             part_positions_list[8] -= 0.025
@@ -712,7 +686,7 @@ while robot.step(timestep) != -1 and mode != 'planner':
 
             robot_parts["arm_6_joint"].setPosition(float(part_positions[8]))
             robot_parts["arm_6_joint"].setVelocity(robot_parts["arm_6_joint"].getMaxVelocity() / 2.0)
-        
+        #same as above
         elif key == ord('7'):
             part_positions_list = list(part_positions)
             part_positions_list[9] += 0.025
@@ -721,7 +695,7 @@ while robot.step(timestep) != -1 and mode != 'planner':
 
             robot_parts["arm_7_joint"].setPosition(float(part_positions[9]))
             robot_parts["arm_7_joint"].setVelocity(robot_parts["arm_7_joint"].getMaxVelocity() / 2.0)
-
+        #same as above
         elif key == ord('U'):
             part_positions_list = list(part_positions)
             part_positions_list[9] -= 0.025
@@ -730,7 +704,7 @@ while robot.step(timestep) != -1 and mode != 'planner':
 
             robot_parts["arm_7_joint"].setPosition(float(part_positions[9]))
             robot_parts["arm_7_joint"].setVelocity(robot_parts["arm_7_joint"].getMaxVelocity() / 2.0)
-
+        #same as above
         elif key == ord('J'):
             part_positions_list = list(part_positions)
             part_positions_list[12] += 0.005
@@ -743,7 +717,7 @@ while robot.step(timestep) != -1 and mode != 'planner':
             robot_parts["gripper_right_finger_joint"].setPosition(float(part_positions[13]))
             robot_parts["gripper_left_finger_joint"].setVelocity(robot_parts["gripper_left_finger_joint"].getMaxVelocity() / 2.0)
             robot_parts["gripper_right_finger_joint"].setVelocity(robot_parts["gripper_right_finger_joint"].getMaxVelocity() / 2.0)
-
+        #same as above
         elif key == ord('K'):
             part_positions_list = list(part_positions)
             part_positions_list[12] -= 0.005
@@ -757,42 +731,43 @@ while robot.step(timestep) != -1 and mode != 'planner':
             robot_parts["gripper_left_finger_joint"].setVelocity(robot_parts["gripper_left_finger_joint"].getMaxVelocity() / 2.0)
             robot_parts["gripper_right_finger_joint"].setVelocity(robot_parts["gripper_right_finger_joint"].getMaxVelocity() / 2.0)
 
-        print('Arm positions: %s, Gripper positions: %s' % (part_positions[3:10], part_positions[12:14]))
-
-    # if arm_mode == 'teleoperation_IK':
-    #     def initTiagoArm():
+        # print('Arm positions: %s, Gripper positions: %s' % (part_positions[3:10], part_positions[12:14]))
             
-    if arm_positioning == 'on':
+    if arm_positioning == 'on': #checking that we have access to the hot keys that control the position of all joints in one go
         while (keyboard.getKey() != -1):
             pass
-        if key == ord('G'): #stowed away
-            part_positions = (0.0, 0.0, 0.35, 0.07, 1.02, -3.16, 1.27, 1.32, 0.0, 1.41, 'inf', 'inf', 0.045, 0.045)            
-            for i, part_name in enumerate(part_names):
-                if (3 <= i <= 9) or (12 <= i <= 13):  # check if i is within the range [3, 9] or [12,13]
-                    robot_parts[part_name].setPosition(float(part_positions[i]))
-                    robot_parts[part_name].setVelocity(robot_parts[part_name].getMaxVelocity() / 2.0)
+        #the following four if statements all behave the exact same ways
+        #each if statement moves the robotic arm into a desired and pre-mapped position depending on which task we are trying to accomplish
+        #such as grabbing the top shelf object, middle shelf object, dropping in basket or having the arm stowed away
+        # since we only want to manipualate the position of the 7 arm joints, we only iterate through the 3 and 9th element in the array and the last two for the gripper position
+        if key == ord('G'): #stowed away position
+            part_positions = (0.0, 0.0, 0.35, 0.07, 1.02, -3.16, 1.27, 1.32, 0.0, 1.41, 'inf', 'inf', 0.045, 0.045) #desired joint positions          
+            for i, part_name in enumerate(part_names): #loop through all joints
+                if (3 <= i <= 9) or (12 <= i <= 13):  # check if i is within the range [3, 9] or [12,13] as we only want to manipulate the position of these joints
+                    robot_parts[part_name].setPosition(float(part_positions[i])) #set the position of the joint
+                    robot_parts[part_name].setVelocity(robot_parts[part_name].getMaxVelocity() / 2.0) #set position at this velocity
 
-        if key == ord('H'): #top shelf object
+        #the three remaing if statements all behave the exact same way as the first if statement, just with different desired part_position locations
+        if key == ord('H'): #grabbing top shelf object position 
             part_positions = (0.0, 0.0, 0.35, 1.595, 0.72, -3.185, -0.32, 1.645, 1.39, 0.12, 'inf', 'inf', 0.045, 0.045)            
             for i, part_name in enumerate(part_names):
                 if (3 <= i <= 9) or (12 <= i <= 13):  # check if i is within the range [3, 9] or [12,13]
                     robot_parts[part_name].setPosition(float(part_positions[i]))
                     robot_parts[part_name].setVelocity(robot_parts[part_name].getMaxVelocity() / 2.0)
 
-        if key == ord('J'): #middle shelf object
+        if key == ord('J'): #grabbing middle shelf object position
             part_positions = (0.0, 0.0, 0.35, 1.62, -1.23, -3.185, 1.03, 0.145, 0.0, 1.41, 'inf', 'inf', 0.045, 0.045)            
             for i, part_name in enumerate(part_names):
                 if (3 <= i <= 9) or (12 <= i <= 13):  # check if i is within the range [3, 9] or [12,13]
                     robot_parts[part_name].setPosition(float(part_positions[i]))
                     robot_parts[part_name].setVelocity(robot_parts[part_name].getMaxVelocity() / 2.0)
 
-        if key == ord('K'): #bring to basket shelf object
+        if key == ord('K'): #dropping object in basket position
             part_positions = (0.0, 0.0, 0.35, 0.495, -0.155, -0.335, 2.29, 0.145, 0.0, 1.41, 'inf', 'inf', 0.0, 0.0)            
             for i, part_name in enumerate(part_names):
-                if (3 <= i <= 9):  # check if i is within the range [3, 9] or [12,13]
+                if (3 <= i <= 9):  # check if i is within the range [3, 9]
                     robot_parts[part_name].setPosition(float(part_positions[i]))
                     robot_parts[part_name].setVelocity(robot_parts[part_name].getMaxVelocity() / 5.0)
-
 
     # print("X: %f Y: %f Theta: %f" % (pose_x, pose_y, pose_theta))
 
