@@ -1,4 +1,4 @@
-# CSCI3302_LabTeam
+# PLEASE READ FOR FINAL PROJECT - CSCI3302_LabTeam
 
 WATCH ME FOR FINAL PROJECT VIDEO
 
@@ -10,8 +10,10 @@ ADDITIONALLY... We accidentally hot-keyed both the 'J' and 'K' keys to two diffe
 This is happening on lines 1123 and 1190 for the 'J' key and 1140 and 1201 for the 'K' key.  
 If you would like to fix this problem so that you can properly test the controller in your WeBots, please change line 1123 to: 
 
-elif key == ord('A') 
+`elif key == ord('A')`
 
-and line 1140 to elif key == ord('D')
+and line 1140 to 
+
+`elif key == ord('D')`
 
 We apologise in advance for this inconvenience however we would appreciate if you implement this change to properly test our code.
