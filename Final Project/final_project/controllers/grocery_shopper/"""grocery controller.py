@@ -8,16 +8,17 @@
 # Alberto Espinosa
 
 from controller import Robot, Keyboard
-from controller import CameraRecognitionObject
 import math
 import random
-import pdb
-import pickle
-import copy
-import cv2
 import numpy as np
 from matplotlib import pyplot as plt
 from scipy.signal import convolve2d
+from ikpy.chain import Chain
+from ikpy.link import OriginLink, URDFLink
+# import tempfile
+# import matplotlib.pyplot
+# from mpl_toolkits.mplot3d import Axes3D
+
 # Initialization
 print("=== Initializing Grocery Shopper...")
 # Consts
@@ -43,12 +44,12 @@ part_names = ("head_2_joint", "head_1_joint", "torso_lift_joint", "arm_1_joint",
               "arm_6_joint",  "arm_7_joint",  "wheel_left_joint", "wheel_right_joint",
               "gripper_left_finger_joint", "gripper_right_finger_joint")
 
-#
-
 # All motors except the wheels are controlled by position control. The wheels
 # are controlled by a velocity controller. We therefore set their position to infinite.
 target_pos = (0.0, 0.0, 0.35, 0.07, 1.02, -3.16, 1.27,
               1.32, 0.0, 1.41, 'inf', 'inf', 0.045, 0.045)
+
+part_positions = target_pos
 
 robot_parts = {}
 for i, part_name in enumerate(part_names):
@@ -56,6 +57,11 @@ for i, part_name in enumerate(part_names):
     robot_parts[part_name].setPosition(float(target_pos[i]))
     robot_parts[part_name].setVelocity(
         robot_parts[part_name].getMaxVelocity() / 2.0)
+
+# current_pos_robot_parts = {}
+# for j, part_name in enumerate(part_names):
+#     current_pos_robot_parts[part_name] = robot.getDevice(part_name)
+#     current_pos_robot_parts[part_name] = robot.getDevice(part_name)
 
 # Enable gripper encoders (position sensors)
 left_gripper_enc = robot.getDevice("gripper_left_finger_joint_sensor")
@@ -86,9 +92,6 @@ display = robot.getDevice("display")
 keyboard = robot.getKeyboard()
 keyboard.enable(timestep)
 
-# Initialization of color changes
-color_ranges = []
-
 # Odometry
 pose_x = 0
 pose_y = 0
@@ -105,11 +108,10 @@ lidar_offsets = lidar_offsets[83:len(lidar_offsets)-83]
 
 map = None
 
-# mode = 'manual'
+mode = 'manual'
 # mode = 'autonomous'
 # mode = 'SLAM'
 # mode = 'planner'
-mode = 'path_following'
 
 arm_mode = 'manual'
 # arm_mode = 'teleoperation_IK'
@@ -132,161 +134,7 @@ while robot.step(timestep) != -1:
     if not math.isnan(initial_heading):
         break
 
-# Define the waypoints as a list of (x, y) tuples for goal objects
-# waypoints_map = [(abs(int(x*12)), abs(int(y*12))) for x, y in waypoints]
-# waypoints converted into map coordinates already
-# waypoints_map = [(134, 18),  (219, 65), (212, 85), (165, 85),
-#                  (140, 65), (140, 130), (110, 130), (207, 161)]
-waypoints_map = [(134, 18),  (219, 65), (212, 85),
-                 (140, 65), (140, 130), (110, 130), (207, 161)]
-
-waypoint_i = 0  # iterator for waypoints
-
-# ------------------------------------------------------------------
-# Helper Functions
-
-
-def add_color_range_to_detect(lower_bound, upper_bound):
-    '''
-    @param lower_bound: Tuple of BGR values
-    @param upper_bound: Tuple of BGR values
-    '''
-    global color_ranges
-    color_ranges.append([lower_bound, upper_bound])
-
-
-def check_if_color_in_range(bgr_tuple):
-    '''
-    @param bgr_tuple: Tuple of BGR values
-    @returns Boolean: True if bgr_tuple is in any of the color ranges specified in color_ranges
-    '''
-    global color_ranges
-    for entry in color_ranges:
-        lower, upper = entry[0], entry[1]
-        in_range = True
-        for i in range(len(bgr_tuple)):
-            if bgr_tuple[i] < lower[i] or bgr_tuple[i] > upper[i]:
-                in_range = False
-                break
-        if in_range:
-            return True
-    return False
-
-
-def do_color_filtering(img):
-    img_height = img.shape[0]
-    img_width = img.shape[1]
-    # Create a matrix of dimensions [height, width] using numpy
-    # Index mask as [height, width] (e.g.,: mask[y,x])
-    mask = np.zeros([img_height, img_width])
-    for i in range(img_height):
-        for j in range(img_width):
-            # print(img[i,j])
-            if check_if_color_in_range(img[i, j]) is True:
-                mask[i, j] = 1
-    return mask
-
-
-def expand(img_mask, cur_coordinate, coordinates_in_blob):
-    if cur_coordinate[0] < 0 or cur_coordinate[1] < 0 or cur_coordinate[0] >= img_mask.shape[0] or cur_coordinate[1] >= img_mask.shape[1]:
-        return
-    if img_mask[cur_coordinate[0], cur_coordinate[1]] == 0.0:
-        return
-
-    img_mask[cur_coordinate[0], cur_coordinate[1]] = 0
-    coordinates_in_blob.append(cur_coordinate)
-
-    above = [cur_coordinate[0]-1, cur_coordinate[1]]
-    below = [cur_coordinate[0]+1, cur_coordinate[1]]
-    left = [cur_coordinate[0], cur_coordinate[1]-1]
-    right = [cur_coordinate[0], cur_coordinate[1]+1]
-    for coord in [above, below, left, right]:
-        expand(img_mask, coord, coordinates_in_blob)
-
-
-def expand_nr(img_mask, cur_coord, coordinates_in_blob):
-    coordinates_in_blob = []
-    # List of all coordinates to try expanding to
-    coordinate_list = [cur_coord]
-    while len(coordinate_list) > 0:
-        # Take the first coordinate in the list and perform 'expand' on it
-        cur_coordinate = coordinate_list.pop()
-        if cur_coordinate[0] < 0 or cur_coordinate[1] < 0 or cur_coordinate[0] >= img_mask.shape[0] or cur_coordinate[1] >= img_mask.shape[1]:
-            continue
-        if img_mask[cur_coordinate[0], cur_coordinate[1]] == 0.0 or cur_coordinate in coordinates_in_blob:
-            continue
-        img_mask[cur_coordinate[0], cur_coordinate[1]] = 0
-        coordinates_in_blob.append(cur_coordinate)
-        above = (cur_coordinate[0]-1, cur_coordinate[1])
-        below = (cur_coordinate[0]+1, cur_coordinate[1])
-        left = (cur_coordinate[0], cur_coordinate[1]-1)
-        right = (cur_coordinate[0], cur_coordinate[1]+1)
-        for coord in [above, below, left, right]:
-            coordinate_list.append(coord)
-    return coordinates_in_blob
-
-
-def get_blobs(img_mask):
-    img_mask_height = img_mask.shape[0]
-    img_mask_width = img_mask.shape[1]
-    mask_copy = copy.copy(img_mask)
-    blobs_list = []  # List of all blobs, each element being a list of coordinates belonging to each blob
-    for i in range(img_mask_height):
-        for j in range(img_mask_width):
-            if img_mask[i, j] == 1:
-                coord = [i, j]
-                blob_coords = []
-                blob_expand = expand_nr(mask_copy, coord, blob_coords)
-                blobs_list.append(blob_expand)
-    return blobs_list
-
-
-def identify_cube():
-    img = camera.getImageArray()  # Read image from current frame of robot camera
-    img = np.asarray(img, dtype=np.uint8)
-    add_color_range_to_detect([158, 167, 0], [222, 222, 73])  # Detect yellow
-    # Create img_mask of all foreground pixels, where foreground is defined as passing the color filter. Same function as homework 3
-    img_mask = do_color_filtering(img)
-    # Find all the blobs in the img_mask. Same function as homework 3
-    blobs = get_blobs(img_mask)
-    # Print location of detected object using Webots API
-    if len(blobs) > 0:
-        obj = camera.getRecognitionObjects()[0]
-        position = obj.getPosition()
-        print("Cube Location In Relation To Camera:")
-        print(position[0], position[1])
-    return
-
-# Euclidean distance between two points
-
-
-def distance(p1, p2):
-    return math.sqrt((p1[0]-p2[0])**2 + (p1[1]-p2[1])**2)
-
-
-# Path smoothing algo
-def smooth_path(path, epsilon):
-    # If the path has only two points, return the path
-    if len(path) <= 2:
-        return path
-    # Find the point farthest from the line segment connecting the first and last points
-    dmax = 0
-    index = 0
-    for i in range(1, len(path)-1):
-        d = distance(path[i], path[0]) + distance(path[i], path[-1])
-        if d > dmax:
-            index = i
-            dmax = d
-
-    # If the farthest point is greater than epsilon away from the line segment, split the path
-    if dmax > epsilon:
-        left = path[:index+1]
-        right = path[index:]
-        simplified_left = smooth_path(left, epsilon)
-        simplified_right = smooth_path(right, epsilon)
-        return simplified_left[:-1] + simplified_right
-    else:
-        return [path[0], path[-1]]
+waypoints = []
 
 
 # ------------------------------------------------------------------
@@ -294,7 +142,6 @@ def smooth_path(path, epsilon):
 # Tier 1: Teleoperation: use the keyboard to direct robot to waypoints
 # Tier 2: A*
 # Tier 3: RRT
-
 
 class Node:
     # Init a node structure
@@ -396,6 +243,26 @@ class RRT:
 
 
 if mode == 'planner':
+    # Part 2.3: Provide start and end in world coordinate frame and convert it to map's frame
+    # start_x = 19.79
+    start_x = 21.4
+    # start_y = 8
+    start_y = 8
+    start_w = (start_x,  start_y)  # (Pose_X, Pose_Y) in meters
+
+    # End coordinates (134, 18)
+    end_x = 11.1666667
+    end_y = 1.5
+    end_w = (end_x, end_y)  # (Pose_X, Pose_Y) in meters
+
+    # Convert the start_w and end_w from the webots coordinate frame into the map frame
+    # (x, y) in 360x360 map
+    start = (abs(int(start_w[0]*12)), abs(int(start_w[1]*12)))
+    # print("Start node: ", start)
+    # (x, y) in 360x360 map
+    end = (abs(int(end_w[0]*12)), abs(int(end_w[1]*12)))
+    # print("End node: ", end)
+
     # Part 2.1: Load map (map.npy) from disk and visualize it
     map = np.load('./map.npy')
 
@@ -426,6 +293,13 @@ if mode == 'planner':
     # Show the plot
     # plt.show()
 
+    # Define the waypoints as a list of (x, y) tuples
+    # Convert tuples from world coordinate into map coordinates
+    # waypoints_map = [(abs(int(x*12)), abs(int(y*12))) for x, y in waypoints]
+
+    # waypoints converted into map coordinates already
+    waypoints_map = [(134, 18),  (219, 65), (212, 85),
+                     (165, 85), (140, 65), (140, 130), (110, 130), (207, 161)]
     # just visit a subset of the end locations for now...
     visit = [(134, 18), (140, 65), (140, 130), (207, 161)]
 
@@ -452,8 +326,7 @@ if mode == 'planner':
 
     if path:
         # print("Path found:", path)
-        epsilon = 3.0
-        path = smooth_path(path, epsilon)
+
         # Plot the path and the obstacles
         plt.imshow(config_space, cmap='binary')
         # plt.imshow(config_space)
@@ -476,17 +349,20 @@ if mode == 'planner':
             # paint the world path
             ax.scatter(x, y)
             path_w.append(node_w)
+
         # save the world coordinate waypoint to disk
         # np.save("path.npy", path_w)
     else:
         print("path failed...")
         print(path)
 # ------------------------------------------------------------------
+# Helper Functions
+
 
 gripper_status = "closed"
 
 # Main Loop
-while robot.step(timestep) != -1 and mode != 'planner' and mode != 'path_following':
+while robot.step(timestep) != -1 and mode != 'planner':
     key = keyboard.getKey()
     ###################
     #
@@ -954,120 +830,7 @@ while robot.step(timestep) != -1 and mode != 'planner' and mode != 'path_followi
                     robot_parts[part_name].setVelocity(
                         robot_parts[part_name].getMaxVelocity() / 5.0)
 
-### =========== =========== =========== ###
-### =========== Path Following =========== ###
-### =========== =========== =========== ###
-while robot.step(timestep) != -1 and mode == 'path_following':
-    ### =========== =========== =========== ###
-    ### =========== Mapping =========== ###
-    ### =========== =========== =========== ###
-    # Ground truth pose
-    pose_x = 15 - gps.getValues()[0]
-    pose_y = 8 - gps.getValues()[1]
-
-    n = compass.getValues()
-    rad = -((math.atan2(n[1], n[0]))-1.5708)
-    pose_theta = rad
-
-    lidar_sensor_readings = lidar.getRangeImage()
-    lidar_sensor_readings = lidar_sensor_readings[83:len(
-        lidar_sensor_readings)-83]
-
-    # load the map from disk
-    map = np.load('./config_space.npy')
-    # Create an instance of the RRT class and find a path
-    path = []
-    start_n = (0, 0)
-    waypoint_n = (0, 0)
-    # Load the first waypoint only
-    key = keyboard.getKey()
-    while (keyboard.getKey() != -1):
-        pass
-
-    if key == ord('F'):
-        # Inital position and first waypoint
-        # print("-> First waypoint: ")
-        start_n = (256, 96)
-        waypoint_n = (134, 18)
-        # print("Start:", start_n)
-        # print("waypoint_n:", start_n)
-    elif key == ord('N'):
-        # print("-> Getting New wypoints:")
-        if waypoint_i == len(waypoints_map)-1:
-            waypoint_i = 0
-            start_n = (256, 96)
-            waypoint_n = (134, 18)
-        # move on to the next waypoint
-        else:
-            start_n = (waypoints_map[waypoint_i][0],
-                       waypoints_map[waypoint_i][1])
-            waypoint_n = (waypoints_map[waypoint_i+1][0],
-                          waypoints_map[waypoint_i+1][1])
-            waypoint_i += 1
-        # print("start_n: ", start_n[0], start_n[1])
-        # print("waypoint_n: ", waypoint_n[0], waypoint_n[1])
-    # else:  # slow down
-    #     vL *= 0.75
-    #     vR *= 0.75
-
-    if start_n != (0, 0) and waypoint_n != (0, 0):
-        # init arbitrary value
-        min_path = [(0, 0)] * 50
-        # get the smoothest path possible
-        for i in range(75):
-            while path == []:
-                # iterate until you get a valid path
-                # Create an instance of the RRT class and find a path
-                rrt = RRT(start_n, waypoint_n, map)
-                # get the path
-                path = rrt.find_path()
-            # get the smallest path possible
-            if path != []:
-                if len(path) <= len(min_path):
-                    min_path = path
-
-        if path and min_path[0] != (0, 0):
-            path = min_path
-            # Apply smoothin algorithm to path
-            epsilon = 3.0
-            path = smooth_path(path, epsilon)
-
-            # Create Figure
-            fig, ax = plt.subplots()
-            # Plot the configuration space
-            ax.imshow(map, cmap='binary')
-            # Plot the path and the obstacles
-            plt.plot(start_n[1], start_n[0], 'go')
-            plt.plot(waypoint_n[1], waypoint_n[0], 'ro')
-            # plt.imshow(config_space)
-            x, y = zip(*path)
-            plt.plot(y, x, '-b')
-            plt.show()
-
-            path_w = []
-            for node in path:
-                x = (abs(int(node[0]/12)))
-                y = (abs(int(node[1]/12)))
-                # create a node for the world coordinate system
-                node_w = (x, y)
-                # paint the world path
-                ax.scatter(x, y)
-                path_w.append(node_w)
-            # save the world coordinate waypoint to disk
-            np.save("single_path.npy", path_w)
-            # print("--> Printing Path: ")
-            # print(path_w)
-
-            # Apply a path smoothing algo
-        else:
-            print("path failed...")
-            print(path)
-    # Implement feedback control loop
-
-    # Actuator commands
-    robot_parts["wheel_left_joint"].setVelocity(0.5*vL)
-    robot_parts["wheel_right_joint"].setVelocity(0.5*vR)
-
+    # print("X: %f Y: %f Theta: %f" % (pose_x, pose_y, pose_theta))
 
 while robot.step(timestep) != -1:
     # there is a bug where webots have to be restarted if the controller exits on Windows
