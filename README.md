@@ -17,3 +17,8 @@ and line 1140 to
 `elif key == ord('D')`
 
 We apologise in advance for this inconvenience however we would appreciate if you implement this change to properly test our code.
+
+Sources:
+- [IKPY Package](https://github.com/Phylliade/ikpy)
+- [Python Robotics](https://github.com/AtsushiSakai/PythonRobotics)
+
