@@ -8,8 +8,13 @@
 # Alberto Espinosa
 
 from controller import Robot, Keyboard
+from controller import CameraRecognitionObject
 import math
 import random
+import pdb
+import pickle
+import copy
+import cv2
 import numpy as np
 from matplotlib import pyplot as plt
 from scipy.signal import convolve2d
@@ -81,6 +86,9 @@ display = robot.getDevice("display")
 keyboard = robot.getKeyboard()
 keyboard.enable(timestep)
 
+# Initialization of color changes
+color_ranges = []
+
 # Odometry
 pose_x = 0
 pose_y = 0
@@ -130,6 +138,118 @@ waypoint_i = 0  # iterator for waypoints
 
 # ------------------------------------------------------------------
 # Helper Functions
+
+
+def add_color_range_to_detect(lower_bound, upper_bound):
+    '''
+    @param lower_bound: Tuple of BGR values
+    @param upper_bound: Tuple of BGR values
+    '''
+    global color_ranges
+    color_ranges.append([lower_bound, upper_bound])
+
+
+def check_if_color_in_range(bgr_tuple):
+    '''
+    @param bgr_tuple: Tuple of BGR values
+    @returns Boolean: True if bgr_tuple is in any of the color ranges specified in color_ranges
+    '''
+    global color_ranges
+    for entry in color_ranges:
+        lower, upper = entry[0], entry[1]
+        in_range = True
+        for i in range(len(bgr_tuple)):
+            if bgr_tuple[i] < lower[i] or bgr_tuple[i] > upper[i]:
+                in_range = False
+                break
+        if in_range:
+            return True
+    return False
+
+
+def do_color_filtering(img):
+    img_height = img.shape[0]
+    img_width = img.shape[1]
+    # Create a matrix of dimensions [height, width] using numpy
+    # Index mask as [height, width] (e.g.,: mask[y,x])
+    mask = np.zeros([img_height, img_width])
+    for i in range(img_height):
+        for j in range(img_width):
+            # print(img[i,j])
+            if check_if_color_in_range(img[i, j]) is True:
+                mask[i, j] = 1
+    return mask
+
+
+def expand(img_mask, cur_coordinate, coordinates_in_blob):
+    if cur_coordinate[0] < 0 or cur_coordinate[1] < 0 or cur_coordinate[0] >= img_mask.shape[0] or cur_coordinate[1] >= img_mask.shape[1]:
+        return
+    if img_mask[cur_coordinate[0], cur_coordinate[1]] == 0.0:
+        return
+
+    img_mask[cur_coordinate[0], cur_coordinate[1]] = 0
+    coordinates_in_blob.append(cur_coordinate)
+
+    above = [cur_coordinate[0]-1, cur_coordinate[1]]
+    below = [cur_coordinate[0]+1, cur_coordinate[1]]
+    left = [cur_coordinate[0], cur_coordinate[1]-1]
+    right = [cur_coordinate[0], cur_coordinate[1]+1]
+    for coord in [above, below, left, right]:
+        expand(img_mask, coord, coordinates_in_blob)
+
+
+def expand_nr(img_mask, cur_coord, coordinates_in_blob):
+    coordinates_in_blob = []
+    # List of all coordinates to try expanding to
+    coordinate_list = [cur_coord]
+    while len(coordinate_list) > 0:
+        # Take the first coordinate in the list and perform 'expand' on it
+        cur_coordinate = coordinate_list.pop()
+        if cur_coordinate[0] < 0 or cur_coordinate[1] < 0 or cur_coordinate[0] >= img_mask.shape[0] or cur_coordinate[1] >= img_mask.shape[1]:
+            continue
+        if img_mask[cur_coordinate[0], cur_coordinate[1]] == 0.0 or cur_coordinate in coordinates_in_blob:
+            continue
+        img_mask[cur_coordinate[0], cur_coordinate[1]] = 0
+        coordinates_in_blob.append(cur_coordinate)
+        above = (cur_coordinate[0]-1, cur_coordinate[1])
+        below = (cur_coordinate[0]+1, cur_coordinate[1])
+        left = (cur_coordinate[0], cur_coordinate[1]-1)
+        right = (cur_coordinate[0], cur_coordinate[1]+1)
+        for coord in [above, below, left, right]:
+            coordinate_list.append(coord)
+    return coordinates_in_blob
+
+
+def get_blobs(img_mask):
+    img_mask_height = img_mask.shape[0]
+    img_mask_width = img_mask.shape[1]
+    mask_copy = copy.copy(img_mask)
+    blobs_list = []  # List of all blobs, each element being a list of coordinates belonging to each blob
+    for i in range(img_mask_height):
+        for j in range(img_mask_width):
+            if img_mask[i, j] == 1:
+                coord = [i, j]
+                blob_coords = []
+                blob_expand = expand_nr(mask_copy, coord, blob_coords)
+                blobs_list.append(blob_expand)
+    return blobs_list
+
+
+def identify_cube():
+    img = camera.getImageArray()  # Read image from current frame of robot camera
+    img = np.asarray(img, dtype=np.uint8)
+    add_color_range_to_detect([158, 167, 0], [222, 222, 73])  # Detect yellow
+    # Create img_mask of all foreground pixels, where foreground is defined as passing the color filter. Same function as homework 3
+    img_mask = do_color_filtering(img)
+    # Find all the blobs in the img_mask. Same function as homework 3
+    blobs = get_blobs(img_mask)
+    # Print location of detected object using Webots API
+    if len(blobs) > 0:
+        obj = camera.getRecognitionObjects()[0]
+        position = obj.getPosition()
+        print("Cube Location In Relation To Camera:")
+        print(position[0], position[1])
+    return
 
 # Euclidean distance between two points
 
@@ -457,6 +577,8 @@ while robot.step(timestep) != -1 and mode != 'planner' and mode != 'path_followi
             plt.ylabel('Y')
             plt.show()
             print("Map loaded...")
+        elif key == ord('C'):
+            identify_cube()
         else:  # slow down
             vL *= 0.75
             vR *= 0.75
