@@ -8,6 +8,7 @@
 # Alberto Espinosa
 
 from controller import Robot, Keyboard
+from controller import CameraRecognitionObject
 import math
 import random
 import pdb
@@ -315,29 +316,10 @@ def check_if_color_in_range(bgr_tuple):
   return False
 
 def do_color_filtering(img):
-  # Color Filtering
-  # Objective: Take an RGB image as input, and create a "mask image" to filter out irrelevant pixels
-  # Definition "mask image":
-  #    An 'image' (really, a matrix) of 0s and 1s, where 0 indicates that the corresponding pixel in 
-  #    the RGB image isn't important (i.e., what we consider background) and 1 indicates foreground.
-  #
-  #    Importantly, we can multiply pixels in an image by those in a mask to 'cancel out' all of the pixels we don't
-  #    care about. Once we've done that step, the only non-zero pixels in our image will be foreground
-  #
-  # Approach:
-  # Create a mask image: a matrix of zeros ( using np.zeroes([height width]) ) of the same height and width as the input image.
-  # For each pixel in the input image, check if it's within the range of allowable colors for your detector
-  #     If it is: set the corresponding entry in your mask to 1
-  #     Otherwise: set the corresponding entry in your mask to 0 (or do nothing, since it's initialized to 0)
-  # Return the mask image
   img_height = img.shape[0]
   img_width = img.shape[1]
   # Create a matrix of dimensions [height, width] using numpy
   mask = np.zeros([img_height, img_width]) # Index mask as [height, width] (e.g.,: mask[y,x])
-  # TODO: Iterate through each pixel (x,y) coordinate of the image, 
-  #       checking if its color is in a range we've specified using check_if_color_in_range
-  # TIP: You'll need to index into 'mask' using (y,x) instead of (x,y) as you may be
-  #      more familiar with, due to how the matrices are stored
   for i in range(img_height):
     for j in range(img_width):
       # print(img[i,j])
@@ -346,15 +328,6 @@ def do_color_filtering(img):
   return mask
 
 def expand(img_mask, cur_coordinate, coordinates_in_blob):
-  # Find all of the non-zero pixels connected to a location
-
-  # If value of img_mask at cur_coordinate is 0, or cur_coordinate is out of bounds (either x,y < 0 or x,y >= width or height of img_mask) return and stop expanding
-
-  # Otherwise, add this to our blob:
-  # Set img_mask at cur_coordinate to 0 so we don't double-count this coordinate if we expand back onto it in the future
-  # Add cur_coordinate to coordinates_in_blob
-  # Call expand on all 4 neighboring coordinates of cur_coordinate (above/below, right/left). Make sure you pass in the same img_mask and coordinates_in_blob objects you were passed so the recursive calls all share the same objects
-
   if cur_coordinate[0] < 0 or cur_coordinate[1] < 0 or cur_coordinate[0] >= img_mask.shape[0] or cur_coordinate[1] >= img_mask.shape[1]:
     return
   if img_mask[cur_coordinate[0], cur_coordinate[1]] == 0.0:
@@ -371,28 +344,16 @@ def expand(img_mask, cur_coordinate, coordinates_in_blob):
     expand(img_mask, coord, coordinates_in_blob)
 
 def expand_nr(img_mask, cur_coord, coordinates_in_blob):
-  # Non-recursive function to find all of the non-zero pixels connected to a location
-
-  # If value of img_mask at cur_coordinate is 0, or cur_coordinate is out of bounds (either x,y < 0 or x,y >= width or height of img_mask) return and stop expanding
-  # Otherwise, add this to our blob:
-  # Set img_mask at cur_coordinate to 0 so we don't double-count this coordinate if we expand back onto it in the future
-  # Add cur_coordinate to coordinates_in_blob
-  # Call expand on all 4 neighboring coordinates of cur_coordinate (above/below, right/left). Make sure you pass in the same img_mask and coordinates_in_blob objects you were passed so the recursive calls all share the same objects
   coordinates_in_blob = []
   coordinate_list = [cur_coord] # List of all coordinates to try expanding to
   while len(coordinate_list) > 0:
     cur_coordinate = coordinate_list.pop() # Take the first coordinate in the list and perform 'expand' on it
-    # TODO: Check to make sure cur_coordinate is in bounds, otherwise 'continue'
     if cur_coordinate[0] < 0 or cur_coordinate[1] < 0 or cur_coordinate[0] >= img_mask.shape[0] or cur_coordinate[1] >= img_mask.shape[1]:
         continue
-    # TODO: Check to see if the value is 0, if so, 'continue'
     if img_mask[cur_coordinate[0], cur_coordinate[1]] == 0.0 or cur_coordinate in coordinates_in_blob: 
         continue
-    # TODO: Set image mask at this coordinate to 0
     img_mask[cur_coordinate[0], cur_coordinate[1]] = 0
-    # TODO: Add this coordinate to 'coordinates_in_blob'
     coordinates_in_blob.append(cur_coordinate)
-    # TODO: Add all neighboring coordinates (above, below, left, right) to coordinate_list to expand to them
     above = (cur_coordinate[0]-1, cur_coordinate[1])
     below = (cur_coordinate[0]+1, cur_coordinate[1])
     left = (cur_coordinate[0], cur_coordinate[1]-1)
@@ -402,71 +363,33 @@ def expand_nr(img_mask, cur_coord, coordinates_in_blob):
   return coordinates_in_blob
 
 def get_blobs(img_mask):
-  # Blob detection
-  # Objective: Take a mask image as input, group each blob of non-zero pixels as a detected object, 
-  #            and return a list of lists containing the coordinates of each pixel belonging to each blob.
-  # Recommended Approach:
-  # Create a copy of the mask image so you can edit it during blob detection
-  # Create an empty blobs_list to hold the coordinates of each blob's pixels
-  # Iterate through each coordinate in the mask:
-  #   If you find an entry that has a non-zero value:
-  #     Create an empty list to store the pixel coordinates of the blob
-  #     Call the recursive "expand" function on that position, recording coordinates of non-zero pixels connected to it
-  #     Add the list of coordinates to your blobs_list variable
-  # Return blobs_list
-    
   img_mask_height = img_mask.shape[0]
   img_mask_width = img_mask.shape[1]
- 
-  # TODO: Copy image mask into local variable using copy.copy
   mask_copy = copy.copy(img_mask)
   blobs_list = [] # List of all blobs, each element being a list of coordinates belonging to each blob
-
-  # TODO: Iterate through all 'y' coordinates in img_mask
-  #   TODO: Iterate through all 'x' coordinates in img_mask
-  #     TODO: If mask value at [y,x] is 1, call expand_nr on copy of image mask and coordinate (y,x), giving a third argument of an empty list to populate with blob_coords.
-  #     TODO: Add blob_coords to blobs_list
   for i in range(img_mask_height):
     for j in range(img_mask_width):
       if img_mask[i,j] ==  1:
         coord = [i,j]
         blob_coords = []
         blob_expand = expand_nr(mask_copy,coord,blob_coords)
-        blobs_list.append(blob_expand) 
+        blobs_list.append(blob_expand)
   return blobs_list
-
-def get_blob_centroids(blobs_list):
-  # Coordinate retrieval
-  # Objective: Take a list of blobs' coordinate lists and return the coordinates of each blob's center.
-  # Approach:
-  #     Create an object_positions_list
-  #     For each list in the blobs_list:
-  #     Check to see if the list of coordinates is big enough to be an object we're looking for, otherwise continue. (The legos are several hundred pixels or more in size!)
-  #     Find the centroid of all coordinates in the coordinates list (hint: np.mean(my_list_var,axis=0) will take the mean)
-  #     Add that centroid (x,y) tuple to object_positions_list
-  # Return object_positions_list
-  object_positions_list = []
-  # TODO: Implement blob centroid calculation
-  for blob in blobs_list:
-      cent = np.mean(blob,axis=0)
-      object_positions_list.append(cent)
-  return object_positions_list
 
 def identify_cube():
    img = camera.getImageArray() #Read image from current frame of robot camera
-   #Establish Cube color ranges
-   img = np.array(img)
-   # np.uint32(img)
-   # cv2.imshow('orig', img)
-   # add_color_range_to_detect([0,114,17], [106,237,101]) # Detect green
+   img = np.asarray(img, dtype=np.uint8)
    add_color_range_to_detect([158,167,0], [222,222,73]) # Detect yellow
-    # Create img_mask of all foreground pixels, where foreground is defined as passing the color filter
+    # Create img_mask of all foreground pixels, where foreground is defined as passing the color filter. Same function as homework 3
    img_mask = do_color_filtering(img)
-   # cv2.imshow('mask', img_mask)
-   # Find all the blobs in the img_mask
+   # Find all the blobs in the img_mask. Same function as homework 3
    blobs = get_blobs(img_mask)
-   # Get the centroids of the img_mask blobs
-   object_positions_list = get_blob_centroids(blobs)
+   #Print location of detected object using Webots API
+   if len(blobs)>0:
+       obj = camera.getRecognitionObjects()[0]
+       position = obj.getPosition()
+       print("Cube Location In Relation To Camera:")
+       print(position[0],position[1])
    return
 
 gripper_status = "closed"
