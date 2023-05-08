@@ -21,4 +21,5 @@ We apologise in advance for this inconvenience however we would appreciate if yo
 Sources:
 - [IKPY Package](https://github.com/Phylliade/ikpy)
 - [Python Robotics](https://github.com/AtsushiSakai/PythonRobotics)
-
+- [RRT MIT](https://fab.cba.mit.edu/classes/865.21/topics/path_planning/robotic.html)
+- [RRT Github](https://github.com/zhm-real/PathPlanning)
