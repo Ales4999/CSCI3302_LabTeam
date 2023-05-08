@@ -13,13 +13,11 @@ import random
 import numpy as np
 from matplotlib import pyplot as plt
 from scipy.signal import convolve2d
-import config
-import helpers
 from ikpy.chain import Chain
 from ikpy.link import OriginLink, URDFLink
-import tempfile
-import matplotlib.pyplot
-from mpl_toolkits.mplot3d import Axes3D
+# import tempfile
+# import matplotlib.pyplot
+# from mpl_toolkits.mplot3d import Axes3D
 
 # Initialization
 print("=== Initializing Grocery Shopper...")
@@ -115,6 +113,10 @@ mode = 'manual'
 # mode = 'planner'
 
 arm_mode = 'manual'
+# arm_mode = 'teleoperation_IK'
+
+arm_positioning = 'on'
+# arm_positioning = 'off'
 
 map = np.zeros(shape=[360, 192])
 # map = np.zeros(shape=[372, 372])
@@ -587,18 +589,18 @@ while robot.step(timestep) != -1 and mode != 'planner':
     robot_parts["wheel_left_joint"].setVelocity(0.5*vL)
     robot_parts["wheel_right_joint"].setVelocity(0.5*vR)
 
-    if (gripper_status == "open"):
-        # Close gripper, note that this takes multiple time steps...
-        robot_parts["gripper_left_finger_joint"].setPosition(0)
-        robot_parts["gripper_right_finger_joint"].setPosition(0)
-        if right_gripper_enc.getValue() <= 0.005:
-            gripper_status = "closed"
-    else:
-        # Open gripper
-        robot_parts["gripper_left_finger_joint"].setPosition(0.045)
-        robot_parts["gripper_right_finger_joint"].setPosition(0.045)
-        if left_gripper_enc.getValue() >= 0.044:
-            gripper_status = "open"
+    # if (gripper_status == "open"):
+    #     # Close gripper, note that this takes multiple time steps...
+    #     robot_parts["gripper_left_finger_joint"].setPosition(0)
+    #     robot_parts["gripper_right_finger_joint"].setPosition(0)
+    #     if right_gripper_enc.getValue() <= 0.005:
+    #         gripper_status = "closed"
+    # else:
+    #     # Open gripper
+    #     robot_parts["gripper_left_finger_joint"].setPosition(0.045)
+    #     robot_parts["gripper_right_finger_joint"].setPosition(0.045)
+    #     if left_gripper_enc.getValue() >= 0.044:
+    #         gripper_status = "open"
 
     if arm_mode == 'manual':
         while (keyboard.getKey() != -1):
@@ -754,6 +756,43 @@ while robot.step(timestep) != -1 and mode != 'planner':
             robot_parts["gripper_right_finger_joint"].setPosition(float(part_positions[13]))
             robot_parts["gripper_left_finger_joint"].setVelocity(robot_parts["gripper_left_finger_joint"].getMaxVelocity() / 2.0)
             robot_parts["gripper_right_finger_joint"].setVelocity(robot_parts["gripper_right_finger_joint"].getMaxVelocity() / 2.0)
+
+        # print('Arm positions: %s, Gripper positions: %s' % (part_positions[3:10], part_positions[12:14]))
+
+    # if arm_mode == 'teleoperation_IK':
+    #     def initTiagoArm():
+            
+    if arm_positioning == 'on':
+        while (keyboard.getKey() != -1):
+            pass
+        if key == ord('Z'): #stowed away
+            part_positions = (0.0, 0.0, 0.35, 0.07, 1.02, -3.16, 1.27, 1.32, 0.0, 1.41, 'inf', 'inf', 0.045, 0.045)            
+            for i, part_name in enumerate(part_names):
+                if (3 <= i <= 9) or (12 <= i <= 13):  # check if i is within the range [3, 9] or [12,13]
+                    robot_parts[part_name].setPosition(float(part_positions[i]))
+                    robot_parts[part_name].setVelocity(robot_parts[part_name].getMaxVelocity() / 2.0)
+
+        if key == ord('X'): #top shelf object
+            part_positions = (0.0, 0.0, 0.35, 1.72, 0.045, -3.16, 0.32, 1.32, 0.425, 0.22, 'inf', 'inf', 0.045, 0.045)            
+            for i, part_name in enumerate(part_names):
+                if (3 <= i <= 9) or (12 <= i <= 13):  # check if i is within the range [3, 9] or [12,13]
+                    robot_parts[part_name].setPosition(float(part_positions[i]))
+                    robot_parts[part_name].setVelocity(robot_parts[part_name].getMaxVelocity() / 2.0)
+
+        if key == ord('C'): #middle shelf object
+            part_positions = (0.0, 0.0, 0.35, 1.62, -1.23, -3.185, 1.03, 0.145, 0.0, 1.41, 'inf', 'inf', 0.045, 0.045)            
+            for i, part_name in enumerate(part_names):
+                if (3 <= i <= 9) or (12 <= i <= 13):  # check if i is within the range [3, 9] or [12,13]
+                    robot_parts[part_name].setPosition(float(part_positions[i]))
+                    robot_parts[part_name].setVelocity(robot_parts[part_name].getMaxVelocity() / 2.0)
+
+        if key == ord('V'): #bring to basket shelf object
+            part_positions = (0.0, 0.0, 0.35, 0.495, -0.155, -0.335, 2.29, 0.145, 0.0, 1.41, 'inf', 'inf', 0.0, 0.0)            
+            for i, part_name in enumerate(part_names):
+                if (3 <= i <= 9):  # check if i is within the range [3, 9] or [12,13]
+                    robot_parts[part_name].setPosition(float(part_positions[i]))
+                    robot_parts[part_name].setVelocity(robot_parts[part_name].getMaxVelocity() / 5.0)
+
 
     # print("X: %f Y: %f Theta: %f" % (pose_x, pose_y, pose_theta))
 

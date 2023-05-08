@@ -7,5 +7,5 @@ centralWidgetVisible: 1
 orthographicViewHeight: 1
 textFiles: 0 "controllers/grocery_shopper/grocery_shopper.py"
 consoles: Console:All:All
-renderingDevicePerspectives: TIAGo Steel:camera;0;1;0;0
-renderingDevicePerspectives: TIAGo Steel:display;1;0.433333;0;0
+renderingDevicePerspectives: TIAGo Steel:camera;1;0.866667;0.0014881;0.00169779
+renderingDevicePerspectives: TIAGo Steel:display;1;0.183333;0;0
