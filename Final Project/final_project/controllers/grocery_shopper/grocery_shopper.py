@@ -131,11 +131,11 @@ waypoints_map = [(134, 18),  (219, 65), (212, 85),
                  (140, 65), (140, 130), (110, 130), (207, 161)]
 
 waypoint_i = 0  # iterator for waypoints
+waypoint_next = False   # iterator for waypoints
+waypoint_flag = 0
 
 # ------------------------------------------------------------------
 # Helper Functions
-
-# Euclidean distance between two points
 
 
 def distance(p1, p2):
@@ -362,7 +362,7 @@ if mode == 'planner':
 # ------------------------------------------------------------------
 
 # Main Loop
-while robot.step(timestep) != -1 and mode != 'planner':
+while robot.step(timestep) != -1 and mode != 'planner' and mode != 'path_following':
     ### =========== =========== =========== ###
     ### =========== Mapping =========== ###
     ### =========== =========== =========== ###
@@ -459,6 +459,10 @@ while robot.step(timestep) != -1 and mode != 'planner':
             plt.ylabel('Y')
             plt.show()
             print("Map loaded...")
+        elif key == ord('P'):
+            # switch to manual mode
+            mode = 'path_following'
+            path_follow = True
         else:  # slow down
             vL *= 0.75
             vR *= 0.75
@@ -559,202 +563,6 @@ while robot.step(timestep) != -1 and mode != 'planner':
 
                 stage_counter += 1
 
-    ### =========== =========== =========== ###
-    ### =========== Path Following =========== ###
-    ### =========== =========== =========== ###
-    if mode == "path_following":
-        # load the map from disk
-        map = np.load('./config_space.npy')
-        # Create an instance of the RRT class and find a path
-        path = []
-        path_w = []
-        start_n = (0, 0)
-        waypoint_n = (0, 0)
-        # Load the first waypoint only
-        key = keyboard.getKey()
-        while (keyboard.getKey() != -1):
-            pass
-        if key == ord('F'):
-            # Inital position and first waypoint
-            # print("-> First waypoint: ")
-            start_n = (256, 96)
-            waypoint_n = (134, 18)
-            # print("Start:", start_n)
-            # print("waypoint_n:", start_n)
-        elif key == ord('N'):
-            # print("-> Getting New wypoints:")
-            if waypoint_i == len(waypoints_map)-1:
-                waypoint_i = 0
-                start_n = (256, 96)
-                waypoint_n = (134, 18)
-            # move on to the next waypoint
-            else:
-                start_n = (waypoints_map[waypoint_i][0],
-                           waypoints_map[waypoint_i][1])
-                waypoint_n = (waypoints_map[waypoint_i+1][0],
-                              waypoints_map[waypoint_i+1][1])
-                waypoint_i += 1
-            # print("start_n: ", start_n[0], start_n[1])
-            # print("waypoint_n: ", waypoint_n[0], waypoint_n[1])
-        # else:  # slow down
-        #     vL *= 0.75
-        #     vR *= 0.75
-        elif key == ord('R'):
-            path_follow = True
-
-        if path_follow == False and start_n != (0, 0) and waypoint_n != (0, 0):
-            # init arbitrary value
-            min_path = [(-1, -1)] * 50
-            # get the smoothest path possible
-            for i in range(200):
-                while path == []:
-                    # iterate until you get a valid path
-                    # Create an instance of the RRT class and find a path
-                    rrt = RRT(start_n, waypoint_n, map)
-                    # get the path
-                    path = rrt.find_path()
-                # get the smallest path possible
-                if path != []:
-                    if len(path) <= len(min_path):
-                        min_path = path
-
-            if path and min_path[0] != (-1, -1):
-                path = min_path
-                # Apply smoothin algorithm to path
-                epsilon = 7.0
-                path = smooth_path(path, epsilon)
-                epsilon = 5.0
-                path2 = smooth_path(path, epsilon)
-
-                # Create Figure
-                fig, ax = plt.subplots()
-                # Plot the configuration space
-                ax.imshow(map, cmap='binary')
-                # Plot the path and the obstacles
-                plt.plot(start_n[1], start_n[0], 'go')
-                plt.plot(waypoint_n[1], waypoint_n[0], 'ro')
-                # plt.imshow(config_space)
-                x, y = zip(*path2)
-                plt.plot(y, x, '-b')
-                plt.show()
-
-                for i in range(len(path2)-1):
-                    x = (abs((path2[i][0]/12)))
-                    y = (abs((path2[i][1]/12)))
-                    # create a node for the world coordinate system
-                    node_w = (x, y)
-                    # paint the world path
-                    # ax.scatter(x, y)
-                    path_w.append(node_w)
-                # save the world coordinate waypoint to disk
-                np.save("single_path.npy", path_w)
-                # print("--> Printing Path: ")
-                # print(path_w)
-
-                # Apply a path smoothing algo
-            else:
-                print("path failed...")
-                print(path)
-        # Implement feedback control loop
-
-        # load the most recent single_path
-        # if start_n != (0, 0) and waypoint_n != (0, 0) and path != []:
-        if path_follow:
-
-            # Define path
-            path = np.load('single_path.npy').tolist()
-
-            # get the next tuple in path
-            goal_x = path[path_i][0]
-            goal_y = path[path_i][1]
-
-            # Calculate the error between the position and the path waypoint
-            # STEP 1: Calculate the error
-            rho = math.sqrt((pose_x - goal_x)**2 + (pose_y - goal_y)**2)
-            alpha = (math.atan2((goal_y-pose_y), (goal_x-pose_x))-pose_theta)*100
-
-            # to calculate velocities
-            radius = (MAX_SPEED_MS/MAX_SPEED)
-            d = AXLE_LENGTH
-
-            # feedback control
-            # If the difference is greater than pi, adjust the sign
-            # if alpha > math.pi:
-            #     alpha -= 2*math.pi
-            # elif alpha < -math.pi:
-            #     alpha += 2*math.pi
-
-            # Completly dictate on alpha
-            # i.e. Rotate until the robot faces the correct direction
-            while abs(alpha) >= 0.02:
-                if alpha > 0:
-                    # turn clockwise
-                    vL = 0.5*MAX_SPEED
-                    vR = -0.5*MAX_SPEED
-                else:
-                    # turn counter clockwise
-                    vL = -0.5*MAX_SPEED
-                    vR = 0.5*MAX_SPEED
-                print("turning")
-                robot_parts["wheel_left_joint"].setVelocity(vL)
-                robot_parts["wheel_right_joint"].setVelocity(vR)
-
-            # if (abs(alpha) > 0.05):
-            #     p1 = 1  # small gains for rho
-            #     p2 = 10  # higher gains for alpha
-            # else:
-            #     # Prioratize position error
-            #     if (abs(rho) > 0.5):
-            #         p1 = 10  # higher gains for rho i.e. position
-            #         p2 = 5
-            # # Controller
-            xR_dot = 10*rho
-            thetaR_dot = 5*alpha
-
-            # # STEP 3: Compute wheelspeeds
-            vL = xR_dot - ((thetaR_dot/2)*d)  # Left wheel velocity in rad/s
-            vR = xR_dot + ((thetaR_dot/2)*d)
-
-            # clamp the values of the speeds
-            if vL >= MAX_SPEED*0.7:
-                vL = 0.5 * MAX_SPEED
-            elif abs(vL) >= MAX_SPEED:
-                vL = - 0.5 * MAX_SPEED
-
-            if vR >= MAX_SPEED*0.7:
-                vR = 0.5 * MAX_SPEED
-            elif abs(vR) >= MAX_SPEED:
-                vR = - 0.5 * MAX_SPEED
-
-            # print("X: %f Z: %f Theta: %f" % (pose_x, pose_y, pose_theta))
-
-            # sopping criteria
-            # STEP 2.8 Create stopping criteria
-            if abs(rho) <= 0.5:
-                path_i += 1
-                print("Curr:", path[path_i][0], path[path_i][1])
-                print("Next:", path[path_i+1][0], path[path_i+1][1])
-                if path_i == 1:
-                    vL = 0
-                    vR = 0
-                    timestep = -1
-                    path_follow = False
-
-            print(f'Waiptoint: {path_i=}')
-            print(f'Pose: {pose_x=} {pose_y=} {pose_theta=}')
-            print(f'Goal: {goal_x=} {goal_y=}')
-            print(f'Error values: {rho=} {alpha=}')
-            print(f'Speeds: {vR=} {vL=}')
-            print("---------------------------------")
-
-    # Odometry code. Don't change vL or vR speeds after this line.
-    # We are using GPS and compass for this lab to get a better pose but this is how you'll do the odometry
-    pose_x += (vL+vR)/2/MAX_SPEED*MAX_SPEED_MS * \
-        timestep/1000.0*math.cos(pose_theta)
-    pose_y -= (vL+vR)/2/MAX_SPEED*MAX_SPEED_MS * \
-        timestep/1000.0*math.sin(pose_theta)
-    pose_theta += (vR-vL)/AXLE_LENGTH/MAX_SPEED*MAX_SPEED_MS*timestep/1000.0
-
     # Actuator commands
     robot_parts["wheel_left_joint"].setVelocity(0.5*vL)
     robot_parts["wheel_right_joint"].setVelocity(0.5*vR)
@@ -773,6 +581,250 @@ while robot.step(timestep) != -1 and mode != 'planner':
             gripper_status = "open"
 
     # print("X: %f Y: %f Theta: %f" % (pose_x, pose_y, pose_theta))
+
+### =========== =========== =========== ###
+### =========== Path Following =========== ###
+### =========== =========== =========== ###
+while robot.step(timestep) != -1 and mode == 'path_following':
+    pose_y = 15 - gps.getValues()[0]
+    pose_x = 8 - gps.getValues()[1]
+
+    n = compass.getValues()
+    rad = -((math.atan2(n[1], n[0]))-1.5708)
+    pose_theta = rad
+
+    # Create an instance of the RRT class and find a path
+    path = []
+    path_w = []
+    start_n = abs(int(pose_y*12)), abs(int(pose_x*12))
+    waypoint_n = (0, 0)
+
+    if waypoint_i == 0 and waypoint_flag == 0:
+        # waypoint_flag = 1   # get the path for first waypoint
+        # start_n = (256, 96)
+        waypoint_n = (134, 18)
+    # print("-> Getting New wypoints:")
+    elif waypoint_i == len(waypoints_map)-1:
+        # stop iteration
+        path_follow = False
+        mode = "grabbing"
+    else:
+        # load curr waypoint
+        start_n = (waypoints_map[waypoint_i][0],
+                   waypoints_map[waypoint_i][1])
+        waypoint_n = (waypoints_map[waypoint_i+1][0],
+                      waypoints_map[waypoint_i+1][1])
+    # move on to the next waypoint
+    if waypoint_next == True:
+        waypoint_i += 1
+        waypoint_next = False
+        # get the map for next waypoint
+        waypoint_flag = 0
+        # print("start_n: ", start_n[0], start_n[1])
+        # print("waypoint_n: ", waypoint_n[0], waypoint_n[1])
+    # Load the first waypoint only
+    key = keyboard.getKey()
+    while (keyboard.getKey() != -1):
+        pass
+    # elif key == ord('N'):
+    if key == ord('R'):
+        path_follow = True
+    elif key == ord('M'):
+        # switch to manual mode
+        mode = 'manual'
+        path_follow = False
+
+    # and start_n != (0, 0) and waypoint_n != (0, 0)
+    if path_follow == False and waypoint_flag == 0:
+        # load the map from disk
+        map = np.load('./config_space.npy')
+        # waypoint flag to false
+        waypoint_flag = 1
+        # init arbitrary value
+        min_path = [(-1, -1)] * 50
+        # get the smoothest path possible
+        for i in range(200):
+            while path == []:
+                # iterate until you get a valid path
+                # Create an instance of the RRT class and find a path
+                rrt = RRT(start_n, waypoint_n, map)
+                # get the path
+                path = rrt.find_path()
+            # get the smallest path possible
+            if path != []:
+                if len(path) <= len(min_path):
+                    min_path = path
+
+        if path and min_path[0] != (-1, -1):
+            path = min_path
+            # Apply smoothin algorithm to path
+            epsilon = 7.0
+            path = smooth_path(path, epsilon)
+            epsilon = 10.0
+            path2 = smooth_path(path, epsilon)
+
+            # Create Figure
+            fig, ax = plt.subplots()
+            # Plot the configuration space
+            ax.imshow(map, cmap='binary')
+            # Plot the path and the obstacles
+            plt.plot(start_n[1], start_n[0], 'go')
+            plt.plot(waypoint_n[1], waypoint_n[0], 'ro')
+            # plt.imshow(config_space)
+            x, y = zip(*path2)
+            plt.plot(y, x, '-b')
+            plt.show()
+
+            for i in range(len(path2)-1):
+                x = (path2[i][0]/12)
+                y = (path2[i][1]/12)
+                # create a node for the world coordinate system
+                node_w = (x, y)
+                # paint the world path
+                # ax.scatter(x, y)
+                path_w.append(node_w)
+            # save the world coordinate waypoint to disk
+            np.save("single_path.npy", path_w)
+            print("-> Path saved Path")
+            # print(path_w)
+
+            # Apply a path smoothing algo
+        else:
+            print("path failed...")
+            print(path)
+    # Implement feedback control loop
+
+    # load the most recent single_path
+    # if start_n != (0, 0) and waypoint_n != (0, 0) and path != []:
+    if path_follow:
+        # Define path
+        path = np.load('single_path.npy').tolist()
+
+        # transform the coordinates to match that of the odometry
+        # x0, y0 = path_w[0]
+        # path = []
+        # for x, y in path_w:
+        #     path.append((x - x0, y - y0))
+
+        for i in range(len(path)):
+            path[i] = (path[i][1], path[i][0])
+
+        # get the next tuple in path
+        goal_x = path[path_i][0]
+        goal_y = path[path_i][1]
+
+        # print(f'{path=}')
+        # print("---------------")
+
+        # # pose_theta = (pose_theta)*(math.pi/180)
+
+        # # Calculate the error between the position and the path waypoint
+        # # STEP 1: Calculate the error
+        # rho = math.sqrt((pose_x - goal_x)**2 + (pose_y - goal_y)**2)
+        # alpha = (math.atan2((goal_y-pose_y), (goal_x-pose_x))-pose_theta)
+        rho = math.sqrt((pose_x - goal_x)**2 + (pose_y - goal_y)**2)
+        # print(f'{goal_x=}, {goal_y=}, {pose_x=}, {pose_y=}, {pose_theta=},')
+        alpha = (math.atan2((goal_x-pose_x), (goal_y-pose_y))-pose_theta)
+        # print(f'{alpha=}')
+        # print("-------------")
+
+        goal_theta = alpha
+        ## Heading Error: nu ##
+        # angle to point in correct direction
+        nu = goal_theta - pose_theta
+
+        # Clamp error values
+        if alpha < -3.1415:
+            alpha += 6.283
+        if nu < -3.1415:
+            nu += 6.283
+        # feedback control
+
+        # # Completly dictate on alpha
+        # # i.e. Rotate until the robot faces the correct direction
+
+        p1, p2, p3 = 0, 0, 0
+        if (abs(alpha) > 5):
+            p1 = 0  # small gains for rho
+            p2 = 10  # higher gains for alpha
+            p3 = 0  # no update for nu
+        else:
+            # Prioratize position error
+            if (abs(rho) > 1):
+                p1 = 5  # higher gains for rho i.e. position
+                p2 = 5
+                p3 = 0
+            else:
+                # Prioritize heading error
+                p1 = 1
+                p2 = 1
+                p3 = 10
+        # # Controller
+        # to calculate velocities
+        xR_dot = 0
+        thetaR_dot = 0
+        radius = (MAX_SPEED_MS/MAX_SPEED)
+        d = AXLE_LENGTH
+
+        xR_dot = p1 * rho
+        thetaR_dot = p2 * alpha + p3 * nu
+        # STEP 3: Compute wheelspeeds
+        vL = xR_dot + ((thetaR_dot/2)*d)  # Left wheel velocity in rad/s
+        vR = xR_dot - ((thetaR_dot/2)*d)
+
+        # clamp the values of the speeds
+
+        # # print("X: %f Z: %f Theta: %f" % (pose_x, pose_y, pose_theta))
+
+        # # sopping criteria
+        # STEP 2.8 Create stopping criteria
+        if abs(rho) <= 1:
+            path_i += 1
+            if path_i == len(path)-1:
+                vL = 0
+                vR = 0
+                timestep = -1
+                path_follow = False
+            # print("Curr:", path[path_i][0], path[path_i][1])
+            # print("Next:", path[path_i+1][0], path[path_i+1][1])
+
+        # # Odometry code. Don't change vL or vR speeds after this line.
+        # # We are using GPS and compass for this lab to get a better pose but this is how you'll do the odometry
+        # # o_pose_x += (vL+vR)/2/MAX_SPEED*MAX_SPEED_MS * \
+        # #     timestep/1000.0*math.cos(pose_theta)
+        # # o_pose_y -= (vL+vR)/2/MAX_SPEED*MAX_SPEED_MS * \
+        # #     timestep/1000.0*math.sin(pose_theta)
+        # # o_pose_theta += (vR-vL)/AXLE_LENGTH/MAX_SPEED * \
+        # #     MAX_SPEED_MS*timestep/1000.0
+
+        # distL = vL/MAX_SPEED * MAX_SPEED_MS * timestep/1000.0
+        # distR = vR/MAX_SPEED * MAX_SPEED_MS * timestep/1000.0
+
+        # pose_x -= (distL+distR) / 2.0 * math.cos(pose_theta)
+        # pose_y -= (distL+distR) / 2.0 * math.sin(pose_theta)
+        # pose_theta += (distR-distL)/AXLE_LENGTH
+
+        # Bound pose_theta between [-pi, 2pi+pi/2]
+        # Important to not allow big fluctuations between timesteps (e.g., going from -pi to pi)
+        # if o_pose_theta > 6.28+3.14/2:
+        #     o_pose_theta -= 6.28
+        # if o_pose_theta < -3.14:
+        #     o_pose_theta += 6.28
+
+        # Actuator commands
+        robot_parts["wheel_left_joint"].setVelocity(0.2*vL)
+        robot_parts["wheel_right_joint"].setVelocity(0.2*vR)
+
+        # print(f'Waiptoint: {path_i=}')
+        # print(f'Pose: {pose_x=} {pose_y=} {pose_theta=}')
+        # print(f'Goal: {goal_x=} {goal_y=}')
+        # print(f'Error values: {rho=} {alpha=}')
+        # print(f'Speeds: {vR=} {vL=}')
+        # print("---------------------------------")
+    else:
+        robot_parts["wheel_left_joint"].setVelocity(0)
+        robot_parts["wheel_right_joint"].setVelocity(0)
+
 
 while robot.step(timestep) != -1:
     # there is a bug where webots have to be restarted if the controller exits on Windows
