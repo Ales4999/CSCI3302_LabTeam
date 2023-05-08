@@ -757,7 +757,7 @@ while robot.step(timestep) != -1 and mode != 'planner':
             robot_parts["gripper_left_finger_joint"].setVelocity(robot_parts["gripper_left_finger_joint"].getMaxVelocity() / 2.0)
             robot_parts["gripper_right_finger_joint"].setVelocity(robot_parts["gripper_right_finger_joint"].getMaxVelocity() / 2.0)
 
-        # print('Arm positions: %s, Gripper positions: %s' % (part_positions[3:10], part_positions[12:14]))
+        print('Arm positions: %s, Gripper positions: %s' % (part_positions[3:10], part_positions[12:14]))
 
     # if arm_mode == 'teleoperation_IK':
     #     def initTiagoArm():
@@ -765,28 +765,28 @@ while robot.step(timestep) != -1 and mode != 'planner':
     if arm_positioning == 'on':
         while (keyboard.getKey() != -1):
             pass
-        if key == ord('Z'): #stowed away
+        if key == ord('V'): #stowed away
             part_positions = (0.0, 0.0, 0.35, 0.07, 1.02, -3.16, 1.27, 1.32, 0.0, 1.41, 'inf', 'inf', 0.045, 0.045)            
             for i, part_name in enumerate(part_names):
                 if (3 <= i <= 9) or (12 <= i <= 13):  # check if i is within the range [3, 9] or [12,13]
                     robot_parts[part_name].setPosition(float(part_positions[i]))
                     robot_parts[part_name].setVelocity(robot_parts[part_name].getMaxVelocity() / 2.0)
 
-        if key == ord('X'): #top shelf object
-            part_positions = (0.0, 0.0, 0.35, 1.72, 0.045, -3.16, 0.32, 1.32, 0.425, 0.22, 'inf', 'inf', 0.045, 0.045)            
+        if key == ord('B'): #top shelf object
+            part_positions = (0.0, 0.0, 0.35, 1.595, 0.72, -3.185, -0.32, 1.645, 1.39, 0.12, 'inf', 'inf', 0.045, 0.045)            
             for i, part_name in enumerate(part_names):
                 if (3 <= i <= 9) or (12 <= i <= 13):  # check if i is within the range [3, 9] or [12,13]
                     robot_parts[part_name].setPosition(float(part_positions[i]))
                     robot_parts[part_name].setVelocity(robot_parts[part_name].getMaxVelocity() / 2.0)
 
-        if key == ord('C'): #middle shelf object
+        if key == ord('N'): #middle shelf object
             part_positions = (0.0, 0.0, 0.35, 1.62, -1.23, -3.185, 1.03, 0.145, 0.0, 1.41, 'inf', 'inf', 0.045, 0.045)            
             for i, part_name in enumerate(part_names):
                 if (3 <= i <= 9) or (12 <= i <= 13):  # check if i is within the range [3, 9] or [12,13]
                     robot_parts[part_name].setPosition(float(part_positions[i]))
                     robot_parts[part_name].setVelocity(robot_parts[part_name].getMaxVelocity() / 2.0)
 
-        if key == ord('V'): #bring to basket shelf object
+        if key == ord('M'): #bring to basket shelf object
             part_positions = (0.0, 0.0, 0.35, 0.495, -0.155, -0.335, 2.29, 0.145, 0.0, 1.41, 'inf', 'inf', 0.0, 0.0)            
             for i, part_name in enumerate(part_names):
                 if (3 <= i <= 9):  # check if i is within the range [3, 9] or [12,13]
